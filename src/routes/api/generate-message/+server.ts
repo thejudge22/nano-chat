@@ -377,17 +377,51 @@ Rules to follow:
 ${attachedRules.map((r) => `- ${r.name}: ${r.rule}`).join('\n')}`;
 	}
 
+	// Apply context memory compression if enabled
+	let finalMessages = formattedMessages;
+	if (userSettingsData?.contextMemoryEnabled && formattedMessages.length > 4) {
+		log('Background: Applying context memory compression', startTime);
+		try {
+			const memoryResponse = await fetch('https://nano-gpt.com/api/v1/memory', {
+				method: 'POST',
+				headers: {
+					'Authorization': `Bearer ${apiKey}`,
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({
+					messages: formattedMessages.map(m => ({
+						role: m.role,
+						content: typeof m.content === 'string' ? m.content : JSON.stringify(m.content),
+					})),
+					expiration_days: 30,
+				}),
+			});
+
+			if (memoryResponse.ok) {
+				const memoryData = await memoryResponse.json();
+				if (memoryData.messages && Array.isArray(memoryData.messages)) {
+					finalMessages = memoryData.messages;
+					log(`Background: Context memory compression applied, reduced to ${finalMessages.length} messages`, startTime);
+				}
+			} else {
+				log(`Background: Context memory API returned ${memoryResponse.status}, using original messages`, startTime);
+			}
+		} catch (e) {
+			log(`Background: Context memory compression failed: ${e}, using original messages`, startTime);
+		}
+	}
+
 	// Only include system message if there is content
 	const messagesToSend =
 		systemContent.length > 0
 			? [
-				...formattedMessages,
+				...finalMessages,
 				{
 					role: 'system' as const,
 					content: systemContent,
 				},
 			]
-			: formattedMessages;
+			: finalMessages;
 
 	if (abortSignal?.aborted) {
 		await handleGenerationError({

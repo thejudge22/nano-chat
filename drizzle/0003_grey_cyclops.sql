@@ -1,0 +1,1 @@
+ALTER TABLE `user_settings` ADD `context_memory_enabled` integer DEFAULT false NOT NULL;

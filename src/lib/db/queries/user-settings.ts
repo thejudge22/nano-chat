@@ -20,6 +20,7 @@ export async function createUserSettings(
             id: generateId(),
             userId,
             privacyMode: data?.privacyMode ?? false,
+            contextMemoryEnabled: data?.contextMemoryEnabled ?? false,
             freeMessagesUsed: data?.freeMessagesUsed ?? 0,
             createdAt: now,
             updatedAt: now,

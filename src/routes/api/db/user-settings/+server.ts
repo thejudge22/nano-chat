@@ -28,6 +28,7 @@ export const POST: RequestHandler = async ({ request }) => {
         case 'update': {
             const settings = await updateUserSettings(userId, {
                 privacyMode: body.privacyMode,
+                contextMemoryEnabled: body.contextMemoryEnabled,
             });
             return json(settings);
         }

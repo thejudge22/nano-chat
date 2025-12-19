@@ -15,6 +15,9 @@
 - Theme more closely resembles T3 Chat
 - Nano-GPT Web Search
 - Nano-GPT Web Scraping when you enter a URL (adds to context)
+- Nano-GPT Context Memory
+
+### Ensure to run ```npx drizzle-kit push``` to upgrade your database schema when new features are added!
 
 ## ✨ About
 

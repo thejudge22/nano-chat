@@ -82,6 +82,7 @@ export const userSettings = sqliteTable(
             .notNull()
             .references(() => user.id, { onDelete: 'cascade' }),
         privacyMode: integer('privacy_mode', { mode: 'boolean' }).notNull().default(false),
+        contextMemoryEnabled: integer('context_memory_enabled', { mode: 'boolean' }).notNull().default(false),
         freeMessagesUsed: integer('free_messages_used').default(0),
         createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
         updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
