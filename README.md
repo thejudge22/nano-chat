@@ -8,8 +8,8 @@
 
 ## Changes with this fork
 
-- Removed Convex -> Using SQLite instead
-- Added Dockerfile/Docker Compose
+- Convex -> SQLite + Drizzle
+- Docker + Docker Compose
 - Yarn -> Bun
 - Openrouter -> Nano-GPT (nano-gpt.com)
 - Theme more closely resembles T3 Chat
@@ -20,7 +20,7 @@
 - Nano-GPT Image Generation + img2img support
 - Passkey support (requires HTTPS)
 - Nano-GPT Video Generation
-- Assistants - Selectable System Prompts
+- Selectable System Prompts (Assistants)
 
 ## Setup (Docker)
 
