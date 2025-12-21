@@ -25,6 +25,10 @@
 			href: '/account',
 		},
 		{
+			title: 'Assistants',
+			href: '/account/assistants',
+		},
+		{
 			title: 'Customization',
 			href: '/account/customization',
 		},

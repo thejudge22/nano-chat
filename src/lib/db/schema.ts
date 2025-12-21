@@ -170,6 +170,7 @@ export const conversations = sqliteTable(
         costUsd: real('cost_usd'),
         public: integer('public', { mode: 'boolean' }).default(false),
         branchedFrom: text('branched_from'),
+        assistantId: text('assistant_id').references(() => assistants.id),
         createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
     },
     (table) => [index('conversations_user_id_idx').on(table.userId)]
@@ -233,6 +234,20 @@ export const userMemories = sqliteTable(
     (table) => [index('user_memories_user_id_idx').on(table.userId)]
 );
 
+export const assistants = sqliteTable('assistants', {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+        .notNull()
+        .references(() => user.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    systemPrompt: text('system_prompt').notNull(),
+    isDefault: integer('is_default', { mode: 'boolean' }).notNull().default(false),
+    createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+    updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
+}, (table) => [
+    index('assistants_user_id_idx').on(table.userId)
+]);
+
 // ============================================================================
 // Relations
 // ============================================================================
@@ -247,6 +262,7 @@ export const userRelations = relations(user, ({ many, one }) => ({
     conversations: many(conversations),
     storage: many(storage),
     memories: one(userMemories),
+    assistants: many(assistants),
 }));
 
 export const sessionRelations = relations(session, ({ one }) => ({
@@ -301,6 +317,10 @@ export const conversationsRelations = relations(conversations, ({ one, many }) =
         fields: [conversations.branchedFrom],
         references: [conversations.id],
     }),
+    assistant: one(assistants, {
+        fields: [conversations.assistantId],
+        references: [assistants.id],
+    }),
 }));
 
 export const messagesRelations = relations(messages, ({ one }) => ({
@@ -320,6 +340,13 @@ export const storageRelations = relations(storage, ({ one }) => ({
 export const userMemoriesRelations = relations(userMemories, ({ one }) => ({
     user: one(user, {
         fields: [userMemories.userId],
+        references: [user.id],
+    }),
+}));
+
+export const assistantsRelations = relations(assistants, ({ one }) => ({
+    user: one(user, {
+        fields: [assistants.userId],
         references: [user.id],
     }),
 }));
@@ -348,3 +375,5 @@ export type Storage = typeof storage.$inferSelect;
 export type NewStorage = typeof storage.$inferInsert;
 export type UserMemory = typeof userMemories.$inferSelect;
 export type NewUserMemory = typeof userMemories.$inferInsert;
+export type Assistant = typeof assistants.$inferSelect;
+export type NewAssistant = typeof assistants.$inferInsert;

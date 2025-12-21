@@ -19,6 +19,7 @@
 - Nano-GPT Image Generation + img2img support
 - Passkey support (requires HTTPS)
 - Nano-GPT Video Generation
+- Assistants - Selectable System Prompts
 
 ### Ensure to run ```npx drizzle-kit push``` to upgrade your database schema when new features are added!
 

@@ -9,6 +9,7 @@ import {
 	conversations,
 	messages,
 	storage,
+	assistants,
 } from '$lib/db/schema';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { eq, and, asc, sql } from 'drizzle-orm';
@@ -36,6 +37,7 @@ const reqBodySchema = z
 	.object({
 		message: z.string().optional(),
 		model_id: z.string(),
+		assistant_id: z.string().optional(),
 
 		session_token: z.string(),
 		conversation_id: z.string().optional(),
@@ -395,6 +397,21 @@ async function generateAIResponse({
 	// Add persistent memory context first (if available)
 	if (storedMemory) {
 		systemContent += `[MEMORY FROM PREVIOUS CONVERSATIONS]\n${storedMemory}\n\n[CURRENT CONVERSATION]\n`;
+	}
+
+	// Fetch assistant if assigned to conversation
+	const conversation = await db.query.conversations.findFirst({
+		where: eq(conversations.id, conversationId),
+	});
+
+	if (conversation?.assistantId) {
+		const assistant = await db.query.assistants.findFirst({
+			where: eq(assistants.id, conversation.assistantId),
+		});
+
+		if (assistant?.systemPrompt) {
+			systemContent += `${assistant.systemPrompt}\n\n`;
+		}
 	}
 
 	// Add scraped URL content (if any)
@@ -993,6 +1010,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			public: false,
 			pinned: false,
 			costUsd: 0,
+			assistantId: args.assistant_id,
 			createdAt: now,
 			updatedAt: now,
 		});
@@ -1054,8 +1072,16 @@ export const POST: RequestHandler = async ({ request }) => {
 			log('User message created', startTime);
 		}
 
-		// Set generating status to true
-		await db.update(conversations).set({ generating: true }).where(eq(conversations.id, conversationId));
+		// Set generating status to true and update assistant if changed
+		const updateData: { generating: boolean; assistantId?: string | null } = { generating: true };
+
+		// Update assistant if a different one is selected
+		if (args.assistant_id !== undefined && args.assistant_id !== existingConversation.assistantId) {
+			updateData.assistantId = args.assistant_id || null;
+			log(`Updating conversation assistant to: ${args.assistant_id || 'none'}`, startTime);
+		}
+
+		await db.update(conversations).set(updateData).where(eq(conversations.id, conversationId));
 	}
 
 	const modelsResult = await getNanoGPTModels();

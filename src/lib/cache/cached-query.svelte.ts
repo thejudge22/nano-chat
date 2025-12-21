@@ -157,7 +157,7 @@ export function useCachedQuery<TResult>(
 
 export interface QueryConfig {
 	url: string;
-	method?: 'GET' | 'POST';
+	method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
 }
 
 // API definition that mimics Convex's api object structure
@@ -216,6 +216,12 @@ export const api = {
 		generateUploadUrl: { url: '/api/storage/upload-url', method: 'POST' } as QueryConfig,
 		getUrl: { url: '/api/storage/url', method: 'GET' } as QueryConfig,
 		deleteFile: { url: '/api/storage/delete', method: 'POST' } as QueryConfig,
+	},
+	assistants: {
+		list: { url: '/api/assistants', method: 'GET' } as QueryConfig,
+		create: { url: '/api/assistants', method: 'POST' } as QueryConfig,
+		update: { url: '/api/assistants', method: 'PATCH' } as QueryConfig, // client side needs to append /id
+		delete: { url: '/api/assistants', method: 'DELETE' } as QueryConfig, // client side needs to append /id
 	},
 	// Shim for betterAuth - not needed with new setup
 	betterAuth: {

@@ -46,11 +46,14 @@
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import BrainIcon from '~icons/lucide/brain';
 	import * as casing from '$lib/utils/casing.js';
+	import BotIcon from '~icons/lucide/bot';
+	import PlusIcon from '~icons/lucide/plus';
 
 	let { children } = $props();
 
 	let textarea = $state<HTMLTextAreaElement>();
 	let abortController = $state<AbortController | null>(null);
+
 
 	$effect(() => {
 		// Enable initial models for new users
@@ -60,6 +63,27 @@
 			invalidatePatterns: [api.user_enabled_models.get_enabled.url]
 		});
 	});
+
+	const assistantsQuery = useCachedQuery(api.assistants.list, {
+		session_token: session.current?.session.token ?? '',
+	});
+
+	const selectedAssistantId = new PersistedState<string>('selectedAssistantId', '');
+
+	$effect(() => {
+		if (selectedAssistantId.current === '' && assistantsQuery.data) {
+			const defaultAssistant = assistantsQuery.data.find((a: any) => a.isDefault);
+			if (defaultAssistant) {
+				selectedAssistantId.current = defaultAssistant.id;
+			} else if (assistantsQuery.data.length > 0) {
+				selectedAssistantId.current = assistantsQuery.data[0].id;
+			}
+		}
+	});
+
+	const selectedAssistant = $derived(
+		assistantsQuery.data?.find((a: any) => a.id === selectedAssistantId.current)
+	);
 
 	const currentConversationQuery = useCachedQuery(api.conversations.getById, () => ({
 		id: page.params.id,
@@ -130,6 +154,7 @@
 				model_id: settings.modelId,
 				images: imagesCopy.length > 0 ? imagesCopy : undefined,
 				web_search_mode: settings.webSearchMode,
+				assistant_id: selectedAssistantId.current || undefined,
 				reasoning_effort: currentModelSupportsReasoning ? settings.reasoningEffort : undefined,
 			});
 
@@ -697,6 +722,35 @@
 										class="bg-secondary/50 hover:bg-secondary text-muted-foreground flex h-9 items-center justify-center rounded-lg px-2.5 transition-colors"
 										onlyImageModels={selectedImages.length > 0}
 									/>
+									{#if assistantsQuery.data && assistantsQuery.data.length > 0}
+										<DropdownMenu.Root>
+											<DropdownMenu.Trigger
+												class="bg-secondary/50 hover:bg-secondary text-muted-foreground flex h-9 items-center justify-center gap-2 rounded-lg px-2.5 transition-colors"
+											>
+												<BotIcon class="size-4" />
+												<span class="text-sm max-w-[100px] truncate">{selectedAssistant?.name ?? 'Assistant'}</span>
+											</DropdownMenu.Trigger>
+											<DropdownMenu.Content>
+												<DropdownMenu.Group>
+													<DropdownMenu.Label>Assistant</DropdownMenu.Label>
+													<DropdownMenu.Separator />
+													{#each assistantsQuery.data as assistant (assistant.id)}
+														<DropdownMenu.CheckboxItem
+															checked={selectedAssistantId.current === assistant.id}
+															onclick={() => (selectedAssistantId.current = assistant.id)}
+														>
+															{assistant.name}
+														</DropdownMenu.CheckboxItem>
+													{/each}
+												</DropdownMenu.Group>
+												<DropdownMenu.Separator />
+												<DropdownMenu.Item onclick={() => goto('/account/assistants?create=true')}>
+													<PlusIcon class="mr-2 size-4" />
+													Create new
+												</DropdownMenu.Item>
+											</DropdownMenu.Content>
+										</DropdownMenu.Root>
+									{/if}
 									<div class="flex items-center gap-1.5">
 										<Tooltip>
 											{#snippet trigger(tooltip)}

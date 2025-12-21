@@ -7,7 +7,7 @@
 
 <label
 	class={cn(
-		'text-sm leading-none font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70',
+		'block text-sm leading-none font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70',
 		className
 	)}
 	{...rest}

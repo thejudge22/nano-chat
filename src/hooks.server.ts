@@ -6,7 +6,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	event.locals.auth = () => auth.api.getSession({ headers: event.request.headers }) as any;
 
-	return svelteKitHandler({ event, resolve, auth });
+	return svelteKitHandler({ event, resolve, auth, building });
 };
 
 import { building } from '$app/environment';
