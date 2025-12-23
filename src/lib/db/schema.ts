@@ -198,6 +198,9 @@ export const messages = sqliteTable(
         images: text('images', { mode: 'json' }).$type<
             Array<{ url: string; storage_id: string; fileName?: string }>
         >(),
+        documents: text('documents', { mode: 'json' }).$type<
+            Array<{ url: string; storage_id: string; fileName?: string; fileType: 'pdf' | 'markdown' | 'text' }>
+        >(),
         costUsd: real('cost_usd'),
         generationId: text('generation_id'),
         webSearchEnabled: integer('web_search_enabled', { mode: 'boolean' }).default(false),

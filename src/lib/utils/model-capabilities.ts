@@ -15,6 +15,12 @@ export function supportsReasoning(model: NanoGPTModel): boolean {
 	return false;
 }
 
+export function supportsDocuments(model: NanoGPTModel): boolean {
+	// For now, assume all models that support images also support documents
+	// This can be refined later based on specific model capabilities
+	return supportsImages(model);
+}
+
 export function getImageSupportedModels(models: NanoGPTModel[]): NanoGPTModel[] {
 	return models.filter(supportsImages);
 }

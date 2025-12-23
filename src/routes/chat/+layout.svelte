@@ -6,6 +6,7 @@
 	import AppSidebar from '$lib/components/app-sidebar.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { ImageModal } from '$lib/components/ui/image-modal';
+import { DocumentModal } from '$lib/components/ui/document-modal';
 	import { LightSwitch } from '$lib/components/ui/light-switch/index.js';
 	import { ShareButton } from '$lib/components/ui/share-button';
 	import { ExportButton } from '$lib/components/ui/export-button';
@@ -18,8 +19,9 @@
 	import { session } from '$lib/state/session.svelte.js';
 	import { settings } from '$lib/state/settings.svelte.js';
 	import { Provider } from '$lib/types';
-	import { compressImage } from '$lib/utils/image-compression';
-	import { supportsImages, supportsReasoning } from '$lib/utils/model-capabilities';
+import { compressImage } from '$lib/utils/image-compression';
+import { supportsImages, supportsReasoning, supportsDocuments } from '$lib/utils/model-capabilities';
+import { validateFiles, getFileType } from '$lib/utils/file-validation';
 	import { omit, pick } from '$lib/utils/object.js';
 	import { cn } from '$lib/utils/utils.js';
 	import { mutate } from '$lib/client/mutation.svelte';
@@ -33,8 +35,9 @@
 	import SearchIcon from '~icons/lucide/search';
 	import Settings2Icon from '~icons/lucide/settings-2';
 	import StopIcon from '~icons/lucide/square';
-	import UploadIcon from '~icons/lucide/upload';
-	import XIcon from '~icons/lucide/x';
+import UploadIcon from '~icons/lucide/upload';
+import XIcon from '~icons/lucide/x';
+import PaperclipIcon from '~icons/lucide/paperclip';
 	import { callCancelGeneration } from '../api/cancel-generation/call.js';
 	import { callGenerateMessage } from '../api/generate-message/call.js';
 	import { ModelPicker } from '$lib/components/model-picker';
@@ -175,7 +178,9 @@
 		loading = true;
 
 		const imagesCopy = [...selectedImages];
+		const documentsCopy = [...selectedDocuments];
 		selectedImages = [];
+		selectedDocuments = [];
 
 		try {
 			const res = await callGenerateMessage({
@@ -184,6 +189,7 @@
 				conversation_id: page.params.id ?? undefined,
 				model_id: settings.modelId,
 				images: imagesCopy.length > 0 ? imagesCopy : undefined,
+				documents: documentsCopy.length > 0 ? documentsCopy : undefined,
 				web_search_mode: settings.webSearchMode,
 				web_search_provider: settings.webSearchProvider,
 				assistant_id: selectedAssistantId.current || undefined,
@@ -274,12 +280,22 @@
 		},
 	});
 	let selectedImages = $state<{ url: string; storage_id: string; fileName?: string }[]>([]);
+	let selectedDocuments = $state<{ url: string; storage_id: string; fileName?: string; fileType: 'pdf' | 'markdown' | 'text' }[]>([]);
 	let isUploading = $state(false);
+	let isUploadingDocuments = $state(false);
 	let fileInput = $state<HTMLInputElement>();
+	let documentInput = $state<HTMLInputElement>();
 	let imageModal = $state<{ open: boolean; imageUrl: string; fileName: string }>({
 		open: false,
 		imageUrl: '',
 		fileName: '',
+	});
+
+	let documentModal = $state<{ open: boolean; documentUrl: string; fileName: string; fileType: 'pdf' | 'markdown' | 'text'; content: string }>({
+		open: false,
+		documentUrl: '',
+		fileName: '',
+		content: '',
 	});
 
 	usePrompt(
@@ -301,10 +317,29 @@
 		return supportsReasoning(currentModel);
 	});
 
+	const currentModelSupportsDocuments = $derived.by(() => {
+		// For now, always show document support for testing
+		// TODO: Make this model-specific when models are properly configured
+		return true;
+		
+		// Original logic (commented out for testing):
+		// if (!settings.modelId) return false;
+		// const nanoGPTModels = models.from(Provider.NanoGPT);
+		// const currentModel = nanoGPTModels.find((m) => m.id === settings.modelId);
+		// if (!currentModel) return false;
+		// return supportsDocuments(currentModel);
+	});
+
 	const fileUpload = new FileUpload({
 		multiple: true,
 		accept: 'image/*',
 		maxSize: 10 * 1024 * 1024, // 10MB
+	});
+
+	const documentUpload = new FileUpload({
+		multiple: true,
+		accept: '.pdf,.md,.markdown,.txt',
+		maxSize: 20 * 1024 * 1024, // 20MB
 	});
 
 	async function handleFileChange(files: File[]) {
@@ -353,8 +388,60 @@
 		}
 	}
 
+	async function handleDocumentChange(files: File[]) {
+		if (!files.length || !session.current?.session.token) return;
+
+		isUploadingDocuments = true;
+		const uploadedFiles: { url: string; storage_id: string; fileName?: string; fileType: 'pdf' | 'markdown' | 'text' }[] = [];
+
+		try {
+			// Validate files
+			const validation = validateFiles(files, ['pdf', 'markdown', 'text']);
+			
+			if (validation.errors.length > 0) {
+				console.error('File validation errors:', validation.errors);
+				// TODO: Show user-friendly error messages
+				return;
+			}
+
+			for (const file of validation.validFiles) {
+				const fileType = getFileType(file) as 'pdf' | 'markdown' | 'text';
+
+				// Upload file to local storage API
+				const uploadResult = await fetch('/api/storage', {
+					method: 'POST',
+					headers: {
+						'Content-Type': file.type,
+					},
+					credentials: 'include',
+					body: file,
+				});
+
+				if (!uploadResult.ok) {
+					throw new Error(`Upload failed: ${uploadResult.statusText}`);
+				}
+
+				const { storageId, url } = await uploadResult.json();
+
+				if (url) {
+					uploadedFiles.push({ url, storage_id: storageId, fileName: file.name, fileType });
+				}
+			}
+
+			selectedDocuments = [...selectedDocuments, ...uploadedFiles];
+		} catch (error) {
+			console.error('Document upload failed:', error);
+		} finally {
+			isUploadingDocuments = false;
+		}
+	}
+
 	function removeImage(index: number) {
 		selectedImages = selectedImages.filter((_, i) => i !== index);
+	}
+
+	function removeDocument(index: number) {
+		selectedDocuments = selectedDocuments.filter((_, i) => i !== index);
 	}
 
 	function openImageModal(imageUrl: string, fileName: string) {
@@ -365,10 +452,42 @@
 		};
 	}
 
+	async function openDocumentModal(documentUrl: string, fileName: string, fileType: 'pdf' | 'markdown' | 'text') {
+		let content = '';
+		
+		// For text and markdown files, fetch the content
+		if (fileType === 'markdown' || fileType === 'text') {
+			try {
+				const response = await fetch(documentUrl);
+				if (response.ok) {
+					content = await response.text();
+				}
+			} catch (error) {
+				console.error('Failed to fetch document content:', error);
+				content = 'Failed to load document content.';
+			}
+		}
+
+		documentModal = {
+			open: true,
+			documentUrl,
+			fileName,
+			fileType,
+			content,
+		};
+	}
+
 	$effect(() => {
 		if (fileUpload.selected.size > 0) {
 			handleFileChange(Array.from(fileUpload.selected));
 			fileUpload.clear();
+		}
+	});
+
+	$effect(() => {
+		if (documentUpload.selected.size > 0) {
+			handleDocumentChange(Array.from(documentUpload.selected));
+			documentUpload.clear();
 		}
 	});
 
@@ -512,6 +631,7 @@
 	bind:open={sidebarOpen}
 	class="bg-sidebar fill-device-height overflow-clip"
 	{...currentModelSupportsImages ? omit(fileUpload.dropzone, ['onclick']) : {}}
+		{...omit(documentUpload.dropzone, ['onclick'])}
 >
 	<AppSidebar bind:searchModalOpen />
 
@@ -672,7 +792,7 @@
 							</div>
 						{/if}
 						<div class="flex flex-grow flex-col">
-							{#if selectedImages.length > 0}
+							{#if selectedImages.length > 0 || selectedDocuments.length > 0}
 								<div class="mb-2 flex flex-wrap gap-2 px-2 pt-2">
 									{#each selectedImages as image, index (image.storage_id)}
 										<div
@@ -698,10 +818,37 @@
 											</button>
 										</div>
 									{/each}
+									{#each selectedDocuments as document, index (document.storage_id)}
+										<div
+											class="group border-border bg-muted relative flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border p-1 transition-all"
+										>
+											<button
+												type="button"
+												onclick={() => openDocumentModal(document.url, document.fileName || 'document', document.fileType)}
+												class="flex size-full flex-col items-center justify-center rounded-lg bg-secondary/50 transition-opacity hover:opacity-80"
+											>
+												{#if document.fileType === 'pdf'}
+													<span class="text-2xl">📄</span>
+												{:else if document.fileType === 'markdown'}
+													<span class="text-2xl">📝</span>
+												{:else if document.fileType === 'text'}
+													<span class="text-2xl">📄</span>
+												{/if}
+											</button>
+											<button
+												type="button"
+												onclick={() => removeDocument(index)}
+												class="bg-destructive text-destructive-foreground absolute -top-1.5 -right-1.5 cursor-pointer rounded-full p-1 opacity-0 transition group-hover:opacity-100 shadow-sm"
+											>
+												<XIcon class="h-3 w-3" />
+											</button>
+										</div>
+									{/each}
 								</div>
 							{/if}
 							<div class="relative flex flex-grow flex-row items-start">
 								<input {...fileUpload.input} bind:this={fileInput} />
+								<input {...documentUpload.input} bind:this={documentInput} />
 								<textarea
 									{...pick(popover.trigger, ['id', 'style', 'onfocusout', 'onfocus'])}
 									bind:this={textarea}
@@ -872,6 +1019,22 @@
 												{/if}
 											</button>
 										{/if}
+										{#if currentModelSupportsDocuments}
+											<button
+												type="button"
+												class="bg-secondary/50 hover:bg-secondary text-muted-foreground flex size-8 items-center justify-center rounded-lg transition-colors disabled:opacity-50"
+												onclick={() => documentInput?.click()}
+												disabled={isUploadingDocuments}
+											>
+												{#if isUploadingDocuments}
+													<div
+														class="size-3 animate-spin rounded-full border-2 border-current border-t-transparent"
+													></div>
+												{:else}
+													<PaperclipIcon class="size-4" />
+												{/if}
+											</button>
+										{/if}
 										{#if currentModelSupportsReasoning}
 											<button
 												type="button"
@@ -917,12 +1080,12 @@
 		</div>
 	</Sidebar.Inset>
 
-	{#if fileUpload.isDragging && currentModelSupportsImages}
+	{#if (fileUpload.isDragging || documentUpload.isDragging) && (currentModelSupportsImages || currentModelSupportsDocuments)}
 		<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/10 backdrop-blur-sm">
 			<div class="text-center">
 				<UploadIcon class="text-primary mx-auto mb-4 h-16 w-16" />
-				<p class="text-xl font-semibold">Add image</p>
-				<p class="mt-2 text-sm opacity-75">Drop an image here to attach it to your message.</p>
+				<p class="text-xl font-semibold">Add files</p>
+				<p class="mt-2 text-sm opacity-75">Drop images or documents (PDF, Markdown, Text) here to attach them to your message.</p>
 			</div>
 		</div>
 	{/if}
@@ -931,6 +1094,14 @@
 		bind:open={imageModal.open}
 		imageUrl={imageModal.imageUrl}
 		fileName={imageModal.fileName}
+	/>
+
+	<DocumentModal
+		bind:open={documentModal.open}
+		documentUrl={documentModal.documentUrl}
+		fileName={documentModal.fileName}
+		fileType={documentModal.fileType}
+		content={documentModal.content}
 	/>
 </Sidebar.Root>
 

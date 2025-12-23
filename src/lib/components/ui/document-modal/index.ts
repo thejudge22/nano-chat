@@ -1,0 +1,1 @@
+export { default as DocumentModal } from './document-modal.svelte';

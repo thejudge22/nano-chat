@@ -12,6 +12,7 @@ import {
 	assistants,
 } from '$lib/db/schema';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
+import { extractTextFromPDF } from '$lib/utils/pdf-extraction';
 import { eq, and, asc, sql } from 'drizzle-orm';
 import { join, resolve } from 'path';
 import { auth } from '$lib/auth';
@@ -51,6 +52,16 @@ const reqBodySchema = z
 					url: z.string(),
 					storage_id: z.string(),
 					fileName: z.string().optional(),
+				})
+			)
+			.optional(),
+		documents: z
+			.array(
+				z.object({
+					url: z.string(),
+					storage_id: z.string(),
+					fileName: z.string().optional(),
+					fileType: z.enum(['pdf', 'markdown', 'text']),
 				})
 			)
 			.optional(),
@@ -375,8 +386,12 @@ async function generateAIResponse({
 				storage_id: string;
 				fileName?: string;
 			}> | null;
+			let processedImages: Array<{ type: 'image_url'; image_url: { url: string } }> = [];
+			let processedDocuments: Array<{ type: 'text'; text: string }> = [];
+			
+			// Process images if present
 			if (messageImages && messageImages.length > 0 && m.role === 'user') {
-				const processedImages = await Promise.all(
+				processedImages = await Promise.all(
 					messageImages.map(async (img) => {
 						// If it's already a data URL or http url, return as is (though http might fail if localhost)
 						if (img.url.startsWith('data:') || img.url.startsWith('http')) {
@@ -417,12 +432,87 @@ async function generateAIResponse({
 						}
 					})
 				);
+			}
 
+			// Process documents if present
+			const messageDocuments = m.documents as Array<{
+				url: string;
+				storage_id: string;
+				fileName?: string;
+				fileType: 'pdf' | 'markdown' | 'text';
+			}> | null;
+			
+			if (messageDocuments && messageDocuments.length > 0 && m.role === 'user') {
+				processedDocuments = await Promise.all(
+					messageDocuments.map(async (doc) => {
+						// If it's already a data URL or http url, return as is
+						if (doc.url.startsWith('data:') || doc.url.startsWith('http')) {
+							return {
+								type: 'text' as const,
+								text: `[Document: ${doc.fileName || doc.fileType}] ${doc.url}`,
+							};
+						}
+
+						// Look up storage record
+						const storageRecord = await db.query.storage.findFirst({
+							where: eq(storage.id, doc.storage_id),
+						});
+
+						if (!storageRecord) {
+							console.warn(`Storage record not found for document id: ${doc.storage_id}`);
+							return {
+								type: 'text' as const,
+								text: `[Document: ${doc.fileName || doc.fileType}] ${doc.url}`,
+							};
+						}
+
+						try {
+							// For text and markdown files, read content
+							if (doc.fileType === 'text' || doc.fileType === 'markdown') {
+								const fileBuffer = readFileSync(storageRecord.path);
+								const content = fileBuffer.toString('utf-8');
+								return {
+									type: 'text' as const,
+									text: `[${doc.fileType.toUpperCase()} Document: ${doc.fileName || 'Untitled'}]\n\n${content}`,
+								};
+							} else {
+								// For PDFs, try to extract text content
+								try {
+									const pdfText = await extractTextFromPDF(storageRecord.path);
+									return {
+										type: 'text' as const,
+										text: `[PDF Document: ${doc.fileName || 'Untitled'}]\n\n${pdfText}`,
+									};
+								} catch (extractError) {
+									console.error(`Failed to extract PDF text:`, extractError);
+									return {
+										type: 'text' as const,
+										text: `[PDF Document: ${doc.fileName || 'Untitled'}] File ID: ${doc.storage_id}\n\n[Note: PDF content could not be extracted automatically. The PDF is stored and available for download.]`,
+									};
+								}
+							}
+						} catch (e) {
+							console.error(`Failed to read document ${doc.storage_id}:`, e);
+							return {
+								type: 'text' as const,
+								text: `[Document: ${doc.fileName || doc.fileType}] ${doc.url}`,
+							};
+						}
+					})
+				);
+			}
+
+			if ((messageImages && messageImages.length > 0) || (messageDocuments && messageDocuments.length > 0)) {
 				return {
 					role: 'user' as const,
-					content: [{ type: 'text' as const, text: m.content }, ...processedImages],
+					content: [
+						{ type: 'text' as const, text: m.content }, 
+						...processedImages, 
+						...processedDocuments
+					],
 				};
 			}
+			
 			return {
 				role: m.role as 'user' | 'assistant' | 'system',
 				content: m.content,
@@ -1138,8 +1228,9 @@ export const POST: RequestHandler = async ({ request }) => {
 				role: 'user',
 				modelId: args.model_id,
 				reasoningEffort: args.reasoning_effort,
-				images: args.images ?? null,
-				webSearchEnabled: effectiveWebSearchMode && effectiveWebSearchMode !== 'off'
+        images: args.images ?? null,
+        documents: args.documents ?? null,
+				webSearchEnabled: args.web_search_mode && args.web_search_mode !== 'off'
 					? true
 					: effectiveWebSearchEnabled ?? false,
 				createdAt: new Date(),
