@@ -41,11 +41,24 @@ export interface ScrapeResponse {
 	summary: ScrapeSummary;
 }
 
-// Import YouTube video ID extraction from youtube-transcript module
-import { extractYouTubeVideoId } from './youtube-transcript';
+/**
+ * Extract YouTube video ID from various YouTube URL formats
+ */
+export function extractYouTubeVideoId(url: string): string | null {
+	const patterns = [
+		/youtube\.com\/watch\?v=([^&]+)/,
+		/youtu\.be\/([^?]+)/,
+		/youtube\.com\/embed\/([^?]+)/,
+		/youtube\.com\/v\/([^?]+)/,
+		/youtube\.com\/live\/([^?]+)/,
+	];
 
-// Re-export for backward compatibility
-export { extractYouTubeVideoId };
+	for (const pattern of patterns) {
+		const match = url.match(pattern);
+		if (match && match[1]) return match[1];
+	}
+	return null;
+}
 
 /**
  * Separate YouTube URLs from regular URLs

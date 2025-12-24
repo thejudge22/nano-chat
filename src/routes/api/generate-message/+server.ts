@@ -24,17 +24,13 @@ import { generationAbortControllers } from './cache.js';
 import { md } from '$lib/utils/markdown-it.js';
 import * as array from '$lib/utils/array';
 import { parseMessageForRules } from '$lib/utils/rules.js';
-import { performNanoGPTWebSearch } from '$lib/backend/web-search';
+import { getNanoGPTModels } from '$lib/backend/models/nano-gpt';
+import { getUserMemory, upsertUserMemory } from '$lib/db/queries/user-memories';
 import {
-	scrapeUrlsFromMessage,
 	extractUrlsByType,
 	scrapeUrls,
 	formatScrapedContent,
 } from '$lib/backend/url-scraper';
-import { processYouTubeUrls } from '$lib/backend/youtube-transcript';
-import { getOrCreateUserSettings } from '$lib/db/queries/user-settings';
-import { getUserMemory, upsertUserMemory } from '$lib/db/queries/user-memories';
-import { getNanoGPTModels } from '$lib/backend/models/nano-gpt';
 import { supportsVideo } from '$lib/utils/model-capabilities';
 import {
 	checkAndUpdateDailyLimit,
@@ -249,33 +245,8 @@ async function generateAIResponse({
 
 	log(`Background: Retrieved ${conversationMessages.length} messages from conversation`, startTime);
 
-	// Check if web search is enabled for the last user message
-	// Also respect webFeaturesDisabled flag for server-side enforcement
 	const lastUserMessage = conversationMessages.filter((m) => m.role === 'user').pop();
-	const webSearchEnabled = webFeaturesDisabled
-		? false
-		: (lastUserMessage?.webSearchEnabled ?? false);
-
-	// Determine if we're using Tavily, Exa, or Kagi (model suffix) or Linkup (separate API)
-	const useTavily = webSearchEnabled && webSearchProvider === 'tavily';
-	const useExa = webSearchEnabled && webSearchProvider === 'exa';
-	const useKagi = webSearchEnabled && webSearchProvider === 'kagi';
-
-	// When using Tavily, Exa, or Kagi, append the suffix to the model ID
-	let modelId = model.modelId;
-	if (useTavily && webSearchDepth) {
-		const tavilySuffix = webSearchDepth === 'deep' ? ':online/tavily-deep' : ':online/tavily';
-		modelId = `${model.modelId}${tavilySuffix}`;
-		log(`Background: Using Tavily web search via model suffix: ${modelId}`, startTime);
-	} else if (useExa && webSearchDepth) {
-		const exaSuffix = webSearchDepth === 'deep' ? ':online/exa-deep' : ':online/exa-fast';
-		modelId = `${model.modelId}${exaSuffix}`;
-		log(`Background: Using Exa web search via model suffix: ${modelId}`, startTime);
-	} else if (useKagi && webSearchDepth) {
-		const kagiSuffix = webSearchDepth === 'deep' ? ':online/kagi-search' : ':online/kagi';
-		modelId = `${model.modelId}${kagiSuffix}`;
-		log(`Background: Using Kagi web search via model suffix: ${modelId}`, startTime);
-	}
+	const modelId = model.modelId;
 
 	// Fetch persistent memory if enabled
 	let storedMemory: string | null = null;
@@ -292,53 +263,17 @@ async function generateAIResponse({
 		}
 	}
 
-	// Perform web search if enabled (only for Linkup, Tavily and Exa use model suffix)
-	let searchContext: string | null = null;
-	let webSearchCost = 0;
-
-	// Track Tavily search cost (handled via model suffix, but we still track the cost)
-	if (useTavily && webSearchDepth) {
-		// Tavily pricing: Deep search $0.016, Web search $0.008
-		webSearchCost = webSearchDepth === 'deep' ? 0.016 : 0.008;
-		log(`Background: Tavily web search cost: $${webSearchCost}`, startTime);
-	}
-
-	// Track Exa search cost (handled via model suffix, but we still track the cost)
-	if (useExa && webSearchDepth) {
-		// Exa pricing: Deep search $0.015, Fast search $0.005
-		webSearchCost = webSearchDepth === 'deep' ? 0.015 : 0.005;
-		log(`Background: Exa web search cost: $${webSearchCost}`, startTime);
-	}
-
-	if (webSearchEnabled && lastUserMessage && !useTavily && !useExa && !useKagi) {
-		log('Background: Performing Linkup web search', startTime);
-		try {
-			const depth = webSearchDepth ?? 'standard';
-			searchContext = await performNanoGPTWebSearch(lastUserMessage.content, apiKey, depth);
-			webSearchCost = depth === 'deep' ? 0.06 : 0.006;
-			log(`Background: Linkup web search completed ($${webSearchCost})`, startTime);
-		} catch (e) {
-			log(`Background: Linkup web search failed: ${e}`, startTime);
-		}
-	}
-
 	// Scrape URLs from the user message if any are present
 	// Skip if web features are disabled for this user
 	let scrapedContent: string = '';
 	let scrapeCost = 0;
-	let youtubeCost = 0;
-	let youtubeWarningMessage = '';
 
 	if (lastUserMessage && !webFeaturesDisabled) {
 		log('Background: Checking for URLs to process', startTime);
 
-		// Get user settings
-		const userSettings = await getOrCreateUserSettings(userId);
-		const youtubeEnabled = userSettings.youtubeTranscriptsEnabled;
-
 		try {
 			// Separate URLs by type
-			const { regularUrls, youtubeUrls } = extractUrlsByType(lastUserMessage.content);
+			const { regularUrls } = extractUrlsByType(lastUserMessage.content);
 
 			// Process regular URLs
 			if (regularUrls.length > 0) {
@@ -346,27 +281,7 @@ async function generateAIResponse({
 				const scrapeResult = await scrapeUrls(regularUrls, apiKey);
 				if (scrapeResult) {
 					scrapedContent += formatScrapedContent(scrapeResult.results);
-					scrapeCost = scrapeResult.summary.successful * 0.001;
-				}
-			}
-
-			// Process YouTube URLs
-			if (youtubeUrls.length > 0) {
-				log(
-					`Background: Processing ${youtubeUrls.length} YouTube URLs: ${youtubeUrls.join(', ')}`,
-					startTime
-				);
-				if (youtubeEnabled) {
-					const youtubeResult = await processYouTubeUrls(youtubeUrls, apiKey);
-
-					scrapedContent += youtubeResult.content;
-					youtubeCost = youtubeResult.cost;
-					log(
-						`Background: YouTube transcripts completed (${youtubeResult.successCount} videos, $${youtubeCost})`,
-						startTime
-					);
-				} else {
-					youtubeWarningMessage = `Note: YouTube URLs were detected but transcript extraction is disabled. Enable in Settings to include video content in responses.`;
+					scrapeCost = (scrapeResult.summary.successful * 0.001);
 				}
 			}
 		} catch (e) {
@@ -387,7 +302,7 @@ async function generateAIResponse({
 		provider: Provider.NanoGPT,
 		content: '',
 		role: 'assistant',
-		webSearchEnabled,
+		webSearchEnabled: webFeaturesDisabled ? false : (conversationMessages.filter((m) => m.role === 'user').pop()?.webSearchEnabled ?? false),
 		createdAt: now,
 	});
 
@@ -601,14 +516,6 @@ async function generateAIResponse({
 		systemContent += scrapedContent;
 	}
 
-	// Add YouTube warning if needed
-	if (youtubeWarningMessage) {
-		systemContent += `\n\n${youtubeWarningMessage}\n\n`;
-	}
-
-	if (searchContext) {
-		systemContent += `${searchContext}\n\nInstructions: Use the above search results to answer the user's query. Cite your sources where possible. If the results are not relevant, you can ignore them.\n\n`;
-	}
 
 	if (attachedRules.length > 0) {
 		systemContent += `The user has mentioned one or more rules to follow with the @<rule_name> syntax. Please follow these rules as they apply.
@@ -696,7 +603,20 @@ ${attachedRules.map((r) => `- ${r.name}: ${r.rule}`).join('\n')}`;
 				stream: true,
 				reasoning_effort: reasoningEffort,
 				stream_options: { include_usage: true },
-			},
+				// @ts-ignore - Custom NanoGPT parameters
+				linkup: (!webFeaturesDisabled && (lastUserMessage?.webSearchEnabled ?? false)) ? {
+					enabled: true,
+					provider: webSearchProvider || 'linkup',
+					depth: webSearchDepth === 'deep' ? 'deep' : 'standard',
+				} : undefined,
+				// @ts-ignore - Custom NanoGPT parameters
+				youtube_transcripts: userSettingsData?.youtubeTranscriptsEnabled ?? false,
+				// @ts-ignore - Custom NanoGPT parameters
+				prompt_caching: (model.modelId.startsWith('claude-')) ? {
+					enabled: true,
+					ttl: '5m',
+				} : undefined,
+			} as any, // Cast to any to allow custom parameters
 			{
 				signal: abortSignal,
 			}
@@ -734,10 +654,8 @@ ${attachedRules.map((r) => `- ${r.name}: ${r.rule}`).join('\n')}`;
 
 			chunkCount++;
 
-			// @ts-expect-error you're wrong
 			reasoning += chunk.choices[0]?.delta?.reasoning || '';
 			content += chunk.choices[0]?.delta?.content || '';
-			// @ts-expect-error you're wrong
 			annotations.push(...(chunk.choices[0]?.delta?.annotations ?? []));
 
 			if (!content && !reasoning) continue;
@@ -795,15 +713,14 @@ ${attachedRules.map((r) => `- ${r.name}: ${r.rule}`).join('\n')}`;
 					const promptTokens = usage.prompt_tokens ?? 0;
 					const completionTokens = usage.completion_tokens ?? 0;
 
-					// Calculate cost: (tokens / 1M) * price_per_million + tool costs
+					// Calculate cost: (tokens / 1M) * price_per_million
 					const tokenCost =
 						(promptTokens * promptPricePerMillion + completionTokens * completionPricePerMillion) /
 						1_000_000;
-					const totalUrlCost = scrapeCost + youtubeCost;
-					costUsd = tokenCost + webSearchCost + totalUrlCost;
+					costUsd = tokenCost + scrapeCost;
 
 					log(
-						`Background: Calculated cost: $${costUsd.toFixed(6)} (prompt: ${promptTokens}, completion: ${completionTokens}, search: $${webSearchCost}, scrape: $${scrapeCost}, youtube: $${youtubeCost})`,
+						`Background: Calculated cost: $${costUsd.toFixed(6)} (prompt: ${promptTokens}, completion: ${completionTokens}, scrape: $${scrapeCost})`,
 						startTime
 					);
 				}
