@@ -14,7 +14,8 @@ export type {
     Message,
     Storage,
     User,
-    Session
+    Session,
+    Assistant
 } from '$lib/db/schema';
 
 // Type aliases for backwards compatibility with Convex patterns

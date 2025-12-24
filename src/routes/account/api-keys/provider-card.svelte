@@ -13,6 +13,7 @@
 	import { ResultAsync } from 'neverthrow';
 	import { resource } from 'runed';
 	import * as providers from '$lib/utils/providers';
+	import type { UserSettings } from '$lib/api';
 
 	type Props = {
 		provider: Provider;
@@ -22,7 +23,7 @@
 	let { provider, meta }: Props = $props();
 	const id = $props.id();
 
-	const keyQuery = useCachedQuery(api.user_keys.get, () => ({
+	const keyQuery = useCachedQuery<string>(api.user_keys.get, () => ({
 		provider,
 	}));
 
@@ -82,7 +83,7 @@
 	);
 
 	// Query for user's daily limit usage
-	const userSettingsQuery = useCachedQuery(api.user_settings.get, {
+	const userSettingsQuery = useCachedQuery<UserSettings>(api.user_settings.get, {
 		session_token: session.current?.session.token ?? '',
 	});
 </script>

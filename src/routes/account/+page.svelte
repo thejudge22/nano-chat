@@ -4,6 +4,7 @@
 	import { goto } from '$app/navigation';
 	import { ResultAsync } from 'neverthrow';
 	import { mutate } from '$lib/client/mutation.svelte';
+	import type { UserSettings } from '$lib/api';
 	import { Switch } from '$lib/components/ui/switch';
 	import { Input } from '$lib/components/ui/input';
 	import { Button } from '$lib/components/ui/button';
@@ -12,7 +13,7 @@
 		Content as CardContent,
 		Description as CardDescription,
 		Header as CardHeader,
-		Title as CardTitle
+		Title as CardTitle,
 	} from '$lib/components/ui/card';
 	import PasskeySettings from '$lib/components/account/PasskeySettings.svelte';
 	import { callModal } from '$lib/components/ui/modal/global-modal.svelte';
@@ -21,7 +22,7 @@
 	import Trash2 from '~icons/lucide/trash-2';
 
 	let { data } = $props();
-	const settings = useCachedQuery(api.user_settings.get, {});
+	const settings = useCachedQuery<UserSettings>(api.user_settings.get, {});
 
 	let privacyMode = $derived(settings.data?.privacyMode ?? false);
 	let contextMemoryEnabled = $derived(settings.data?.contextMemoryEnabled ?? false);
@@ -135,7 +136,7 @@
 			const baseUrl = karakeepUrl.endsWith('/') ? karakeepUrl.slice(0, -1) : karakeepUrl;
 			const response = await fetch(`${baseUrl}/api/v1/users/me`, {
 				headers: {
-					'Authorization': `Bearer ${karakeepApiKey}`,
+					Authorization: `Bearer ${karakeepApiKey}`,
 				},
 			});
 
@@ -155,7 +156,8 @@
 	async function deleteAllChats() {
 		const res = await callModal({
 			title: 'Delete All Chats',
-			description: 'Are you sure you want to delete all your conversations? This action cannot be undone and will permanently delete all conversations and their associated messages.',
+			description:
+				'Are you sure you want to delete all your conversations? This action cannot be undone and will permanently delete all conversations and their associated messages.',
 			actions: { cancel: 'outline', delete: 'destructive' },
 		});
 
@@ -193,7 +195,8 @@
 			// Show error feedback
 			await callModal({
 				title: 'Error',
-				description: error instanceof Error ? error.message : 'Failed to delete all chats. Please try again.',
+				description:
+					error instanceof Error ? error.message : 'Failed to delete all chats. Please try again.',
 				actions: { ok: 'default' },
 			});
 		} finally {
@@ -214,39 +217,45 @@
 	<Card>
 		<CardHeader>
 			<CardTitle>General Settings</CardTitle>
-			<CardDescription>
-				Privacy and memory preferences for your account.
-			</CardDescription>
+			<CardDescription>Privacy and memory preferences for your account.</CardDescription>
 		</CardHeader>
 		<CardContent class="grid gap-4">
 			<div class="flex place-items-center justify-between">
 				<div class="flex flex-col gap-1">
 					<span class="font-medium">Hide Personal Information</span>
-					<span class="text-muted-foreground text-sm">Blur your name and avatar in the sidebar.</span>
+					<span class="text-muted-foreground text-sm"
+						>Blur your name and avatar in the sidebar.</span
+					>
 				</div>
 				<Switch bind:value={() => privacyMode, togglePrivacyMode} />
 			</div>
 			<div class="flex place-items-center justify-between">
 				<div class="flex flex-col gap-1">
 					<span class="font-medium">Context Memory</span>
-					<span class="text-muted-foreground text-sm">Compress long conversations for better context retention.</span>
+					<span class="text-muted-foreground text-sm"
+						>Compress long conversations for better context retention.</span
+					>
 				</div>
 				<Switch bind:value={() => contextMemoryEnabled, toggleContextMemory} />
 			</div>
 			<div class="flex place-items-center justify-between">
 				<div class="flex flex-col gap-1">
 					<span class="font-medium">Persistent Memory</span>
-					<span class="text-muted-foreground text-sm">Remember facts about you across different conversations.</span>
+					<span class="text-muted-foreground text-sm"
+						>Remember facts about you across different conversations.</span
+					>
 				</div>
 				<Switch bind:value={() => persistentMemoryEnabled, togglePersistentMemory} />
 			</div>
 			<div class="flex place-items-center justify-between">
-		        <div class="flex flex-col gap-1">
+				<div class="flex flex-col gap-1">
 					<span>YouTube Transcripts</span>
-			    	<span class="text-muted-foreground text-sm">Automatically fetch YouTube video transcripts ($0.01 each).</span>
+					<span class="text-muted-foreground text-sm"
+						>Automatically fetch YouTube video transcripts ($0.01 each).</span
+					>
 				</div>
-		<Switch bind:value={() => youtubeTranscriptsEnabled, toggleYoutubeTranscripts} />
-	</div>
+				<Switch bind:value={() => youtubeTranscriptsEnabled, toggleYoutubeTranscripts} />
+			</div>
 		</CardContent>
 	</Card>
 
@@ -255,9 +264,9 @@
 		<button
 			type="button"
 			class="w-full text-left"
-			onclick={() => karakeepExpanded = !karakeepExpanded}
+			onclick={() => (karakeepExpanded = !karakeepExpanded)}
 		>
-			<CardHeader class="cursor-pointer hover:bg-muted/50 transition-colors rounded-t-lg">
+			<CardHeader class="hover:bg-muted/50 cursor-pointer rounded-t-lg transition-colors">
 				<div class="flex items-center justify-between">
 					<div>
 						<CardTitle>Karakeep Integration</CardTitle>
@@ -275,7 +284,7 @@
 				</div>
 			</CardHeader>
 		</button>
-		
+
 		{#if karakeepExpanded}
 			<CardContent class="grid gap-4 pt-0">
 				<div class="flex flex-col gap-2">
@@ -288,7 +297,7 @@
 					/>
 					<span class="text-muted-foreground text-xs">The URL of your Karakeep instance</span>
 				</div>
-				
+
 				<div class="flex flex-col gap-2">
 					<label for="karakeep-api-key" class="text-sm font-medium">API Key</label>
 					<Input
@@ -299,12 +308,9 @@
 					/>
 					<span class="text-muted-foreground text-xs">Your Karakeep API authentication key</span>
 				</div>
-				
+
 				<div class="flex gap-2">
-					<Button
-						onclick={saveKarakeepSettings}
-						disabled={karakeepSaving}
-					>
+					<Button onclick={saveKarakeepSettings} disabled={karakeepSaving}>
 						{karakeepSaving ? 'Saving...' : 'Save Settings'}
 					</Button>
 					<Button
@@ -315,7 +321,7 @@
 						{karakeepTestStatus === 'testing' ? 'Testing...' : 'Test Connection'}
 					</Button>
 				</div>
-				
+
 				{#if karakeepTestStatus !== 'idle' && karakeepTestMessage}
 					<div
 						class="rounded-md p-3 text-sm {karakeepTestStatus === 'success'
@@ -334,9 +340,9 @@
 		<button
 			type="button"
 			class="w-full text-left"
-			onclick={() => deleteAllChatsExpanded = !deleteAllChatsExpanded}
+			onclick={() => (deleteAllChatsExpanded = !deleteAllChatsExpanded)}
 		>
-			<CardHeader class="cursor-pointer hover:bg-muted/50 transition-colors rounded-t-lg">
+			<CardHeader class="hover:bg-muted/50 cursor-pointer rounded-t-lg transition-colors">
 				<div class="flex items-center justify-between">
 					<div>
 						<CardTitle class="text-destructive">Delete All Chats</CardTitle>
@@ -354,19 +360,17 @@
 				</div>
 			</CardHeader>
 		</button>
-		
+
 		{#if deleteAllChatsExpanded}
 			<CardContent class="pt-0">
 				<div class="flex flex-col gap-4">
-					<div class="rounded-md border border-destructive/50 bg-destructive/10 p-4">
+					<div class="border-destructive/50 bg-destructive/10 rounded-md border p-4">
 						<div class="flex items-start gap-3">
-							<Trash2 class="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+							<Trash2 class="text-destructive mt-0.5 h-5 w-5 shrink-0" />
 							<div class="flex flex-col gap-2">
-								<p class="font-medium text-destructive">Warning: This action cannot be undone</p>
-								<p class="text-sm text-muted-foreground">
-									This will permanently delete:
-								</p>
-								<ul class="text-sm text-muted-foreground list-disc list-inside space-y-1 ml-1">
+								<p class="text-destructive font-medium">Warning: This action cannot be undone</p>
+								<p class="text-muted-foreground text-sm">This will permanently delete:</p>
+								<ul class="text-muted-foreground ml-1 list-inside list-disc space-y-1 text-sm">
 									<li>All your conversations</li>
 									<li>All messages within those conversations</li>
 									<li>Any associated data and context</li>
@@ -374,7 +378,7 @@
 							</div>
 						</div>
 					</div>
-					
+
 					<Button
 						variant="destructive"
 						onclick={deleteAllChats}

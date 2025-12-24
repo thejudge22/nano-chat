@@ -43,7 +43,7 @@ export async function mutate<T = unknown>(
 
         // Invalidate cache keys
         for (const key of invalidateKeys) {
-            invalidateQuery(key);
+            invalidateQuery({ url: key });
         }
 
         // Invalidate cache patterns

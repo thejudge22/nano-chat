@@ -6,7 +6,7 @@ import {
     messageInteractions,
     type ModelPerformanceStats,
 } from '../schema';
-import { eq, and, avg, count, sum, sql } from 'drizzle-orm';
+import { eq, and, count, sql } from 'drizzle-orm';
 
 export async function getModelPerformanceStatsByUser(
     userId: string
@@ -64,7 +64,7 @@ export async function upsertModelPerformanceStats(
             })
             .where(eq(modelPerformanceStats.id, existing.id))
             .returning();
-        return result;
+        return result!;
     }
 
     const [result] = await db
@@ -76,7 +76,7 @@ export async function upsertModelPerformanceStats(
         })
         .returning();
 
-    return result;
+    return result!;
 }
 
 // Calculate and update performance stats for a specific model
@@ -87,63 +87,63 @@ export async function calculateModelPerformanceStats(
 ): Promise<ModelPerformanceStats> {
     try {
         console.log(`[model-performance] Calculating stats for ${modelId} (${provider})`);
-        
+
         // Get all messages for this model
         const modelMessages = await db.query.messages.findMany({
-        where: and(
-            eq(messages.modelId, modelId),
-            eq(messages.provider, provider),
-            sql`${messages.conversationId} IN (SELECT id FROM ${sql.identifier('conversations')} WHERE ${sql.identifier('user_id')} = ${userId})`
-        ),
-        with: {
-            ratings: true,
-            interactions: true,
-        },
-    });
+            where: and(
+                eq(messages.modelId, modelId),
+                eq(messages.provider, provider),
+                sql`${messages.conversationId} IN (SELECT id FROM ${sql.identifier('conversations')} WHERE ${sql.identifier('user_id')} = ${userId})`
+            ),
+            with: {
+                ratings: true,
+                interactions: true,
+            },
+        });
 
-    // Calculate stats
-    const totalMessages = modelMessages.length;
-    const totalCost = modelMessages.reduce((sum, m) => sum + (m.costUsd ?? 0), 0);
-    const errorCount = modelMessages.filter((m) => m.error).length;
-    const avgTokens =
-        totalMessages > 0
-            ? modelMessages.reduce((sum, m) => sum + (m.tokenCount ?? 0), 0) / totalMessages
-            : 0;
+        // Calculate stats
+        const totalMessages = modelMessages.length;
+        const totalCost = modelMessages.reduce((sum, m) => sum + (m.costUsd ?? 0), 0);
+        const errorCount = modelMessages.filter((m) => m.error).length;
+        const avgTokens =
+            totalMessages > 0
+                ? modelMessages.reduce((sum, m) => sum + (m.tokenCount ?? 0), 0) / totalMessages
+                : 0;
 
-    // Calculate rating stats
-    const allRatings = modelMessages.flatMap((m) => m.ratings ?? []);
-    const ratingsWithNumbers = allRatings.filter((r) => r.rating !== null);
-    const avgRating =
-        ratingsWithNumbers.length > 0
-            ? ratingsWithNumbers.reduce((sum, r) => sum + (r.rating ?? 0), 0) /
-              ratingsWithNumbers.length
-            : undefined;
+        // Calculate rating stats
+        const allRatings = modelMessages.flatMap((m) => m.ratings ?? []);
+        const ratingsWithNumbers = allRatings.filter((r) => r.rating !== null);
+        const avgRating =
+            ratingsWithNumbers.length > 0
+                ? ratingsWithNumbers.reduce((sum, r) => sum + (r.rating ?? 0), 0) /
+                ratingsWithNumbers.length
+                : undefined;
 
-    const thumbsUpCount = allRatings.filter((r) => r.thumbs === 'up').length;
-    const thumbsDownCount = allRatings.filter((r) => r.thumbs === 'down').length;
+        const thumbsUpCount = allRatings.filter((r) => r.thumbs === 'up').length;
+        const thumbsDownCount = allRatings.filter((r) => r.thumbs === 'down').length;
 
-    // Calculate interaction stats
-    const allInteractions = modelMessages.flatMap((m) => m.interactions ?? []);
-    const regenerateCount = allInteractions.filter((i) => i.action === 'regenerate').length;
+        // Calculate interaction stats
+        const allInteractions = modelMessages.flatMap((m) => m.interactions ?? []);
+        const regenerateCount = allInteractions.filter((i) => i.action === 'regenerate').length;
 
-    // Calculate category counts
-    const categoryMap = {
-        Accurate: 0,
-        Helpful: 0,
-        Creative: 0,
-        Fast: 0,
-        'Cost-effective': 0,
-    };
+        // Calculate category counts
+        const categoryMap = {
+            Accurate: 0,
+            Helpful: 0,
+            Creative: 0,
+            Fast: 0,
+            'Cost-effective': 0,
+        };
 
-    for (const rating of allRatings) {
-        if (rating.categories && Array.isArray(rating.categories)) {
-            for (const category of rating.categories) {
-                if (category in categoryMap) {
-                    categoryMap[category as keyof typeof categoryMap]++;
+        for (const rating of allRatings) {
+            if (rating.categories && Array.isArray(rating.categories)) {
+                for (const category of rating.categories) {
+                    if (category in categoryMap) {
+                        categoryMap[category as keyof typeof categoryMap]++;
+                    }
                 }
             }
         }
-    }
 
         // Upsert the stats
         const result = await upsertModelPerformanceStats({
@@ -164,8 +164,8 @@ export async function calculateModelPerformanceStats(
             fastCount: categoryMap.Fast,
             costEffectiveCount: categoryMap['Cost-effective'],
         });
-        
-        console.log(`[model-performance] Stats calculated: ${totalMessages} messages, avg rating: ${avgRating?.toFixed(2) ?? 'N/A'}`);
+
+        console.log(`[model-performance] Stats calculated: ${totalMessages} messages rating: ${avgRating?.toFixed(2) ?? 'N/A'}`);
         return result;
     } catch (err) {
         console.error(`[model-performance] Error calculating stats for ${modelId}:`, err);
@@ -179,7 +179,7 @@ export async function calculateAllModelPerformanceStats(
 ): Promise<ModelPerformanceStats[]> {
     try {
         console.log(`[model-performance] Calculating all stats for user ${userId}`);
-        
+
         // Get distinct model/provider combinations for this user
         const distinctModels = await db
             .selectDistinct({

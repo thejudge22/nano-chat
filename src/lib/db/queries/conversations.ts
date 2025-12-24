@@ -50,7 +50,7 @@ export async function createConversation(userId: string, title?: string): Promis
             updatedAt: now,
         })
         .returning();
-    return result;
+    return result!;
 }
 
 export async function createConversationWithMessage(
@@ -71,7 +71,7 @@ export async function createConversationWithMessage(
     await db.insert(conversations).values({
         id: conversationId,
         userId,
-        title: getFirstSentence(messageData.content) || 'Untitled',
+        title: getFirstSentence(messageData.content)[0] || 'Untitled',
         generating: true,
         createdAt: now,
         updatedAt: now,

@@ -11,10 +11,10 @@ export async function createMessageRating(data: {
     feedback?: string;
 }): Promise<MessageRating> {
     const now = new Date();
-    
+
     // Check if rating already exists
     const existing = await getMessageRatingByUserAndMessage(data.userId, data.messageId);
-    
+
     if (existing) {
         // Update existing rating
         return updateMessageRating(existing.id, {
@@ -24,7 +24,7 @@ export async function createMessageRating(data: {
             feedback: data.feedback,
         });
     }
-    
+
     // Create new rating
     const [result] = await db
         .insert(messageRatings)
@@ -41,7 +41,7 @@ export async function createMessageRating(data: {
         })
         .returning();
 
-    return result;
+    return result!;
 }
 
 export async function updateMessageRating(
@@ -62,7 +62,7 @@ export async function updateMessageRating(
         .where(eq(messageRatings.id, ratingId))
         .returning();
 
-    return result;
+    return result!;
 }
 
 export async function getMessageRatingById(ratingId: string): Promise<MessageRating | null> {

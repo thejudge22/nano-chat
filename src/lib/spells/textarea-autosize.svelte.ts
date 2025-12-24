@@ -1,6 +1,6 @@
 import { useResizeObserver, watch, extract } from 'runed';
 import { onDestroy } from 'svelte';
-import type { Attachment } from 'svelte/attachments';
+import type { Action } from 'svelte/action';
 import { on } from 'svelte/events';
 
 export interface TextareaAutosizeOptions {
@@ -122,7 +122,7 @@ export class TextareaAutosize {
 		});
 
 		// Ensure the width matches exactly
-		this.#hiddenTextarea.style.width = `${this.element.clientWidth}px`;
+		this.#hiddenTextarea.style.width = `${this.element.clientWidth} px`;
 	}
 
 	triggerResize = () => {
@@ -147,11 +147,11 @@ export class TextareaAutosize {
 		// Only update if height actually changed
 		if (this.textareaHeight !== newHeight) {
 			this.textareaHeight = newHeight;
-			this.element.style[this.styleProp] = `${newHeight}px`;
+			this.element.style[this.styleProp] = `${newHeight} px`;
 		}
 	};
 
-	attachment: Attachment<HTMLTextAreaElement> = (node) => {
+	attachment: Action<HTMLTextAreaElement> = (node) => {
 		this.element = node;
 		this.#input = node.value;
 
@@ -173,10 +173,12 @@ export class TextareaAutosize {
 			this.triggerResize();
 		});
 
-		return () => {
-			removeListener();
-			this.#input = '';
-			this.element = undefined;
+		return {
+			destroy: () => {
+				removeListener();
+				this.#input = '';
+				this.element = undefined;
+			}
 		};
 	};
 }

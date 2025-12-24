@@ -17,48 +17,50 @@ export const load: PageServerLoad = async ({ request }) => {
 
     try {
         console.log(`[analytics] Loading analytics for user ${userId}`);
-        
+
         // Always recalculate stats to ensure they're up-to-date
         const stats = await calculateAllModelPerformanceStats(userId);
         console.log(`[analytics] Calculated stats for ${stats.length} models`);
 
-    // Calculate additional insights
-    const totalMessages = stats.reduce((sum, s) => sum + s.totalMessages, 0);
-    const totalCost = stats.reduce((sum, s) => sum + s.totalCost, 0);
-    const avgRating =
-        stats.filter((s) => s.avgRating !== null).length > 0
-            ? stats.reduce((sum, s) => sum + (s.avgRating ?? 0), 0) /
-              stats.filter((s) => s.avgRating !== null).length
+        // Calculate additional insights
+        const totalMessages = stats.reduce((sum, s) => sum + s.totalMessages, 0);
+        const totalCost = stats.reduce((sum, s) => sum + s.totalCost, 0);
+        const avgRating =
+            stats.filter((s) => s.avgRating !== null).length > 0
+                ? stats.reduce((sum, s) => sum + (s.avgRating ?? 0), 0) /
+                stats.filter((s) => s.avgRating !== null).length
+                : null;
+
+        // Find most used model
+        const mostUsedModel = stats.length > 0
+            ? stats.reduce(
+                (prev, current) => (current.totalMessages > prev.totalMessages ? current : prev),
+                stats[0]!
+            )
             : null;
 
-    // Find most used model
-    const mostUsedModel = stats.reduce(
-        (prev, current) => (current.totalMessages > prev.totalMessages ? current : prev),
-        stats[0]
-    );
+        // Find best rated model (with at least 5 messages)
+        const qualifiedModels = stats.filter((s) => s.totalMessages >= 5 && s.avgRating !== null);
+        const bestRatedModel =
+            qualifiedModels.length > 0
+                ? qualifiedModels.reduce((prev, current) =>
+                    (current.avgRating ?? 0) > (prev.avgRating ?? 0) ? current : prev
+                )
+                : null;
 
-    // Find best rated model (with at least 5 messages)
-    const qualifiedModels = stats.filter((s) => s.totalMessages >= 5 && s.avgRating !== null);
-    const bestRatedModel =
-        qualifiedModels.length > 0
-            ? qualifiedModels.reduce((prev, current) =>
-                  (current.avgRating ?? 0) > (prev.avgRating ?? 0) ? current : prev
-              )
-            : null;
-
-    // Find most cost-effective model (lowest cost per message with at least 5 messages)
-    const modelsWithCost = stats.filter((s) => s.totalMessages >= 5 && s.totalCost > 0);
-    const mostCostEffective =
-        modelsWithCost.length > 0
-            ? modelsWithCost.reduce((prev, current) => {
-                  const prevCostPerMsg = prev.totalCost / prev.totalMessages;
-                  const currentCostPerMsg = current.totalCost / current.totalMessages;
-                  return currentCostPerMsg < prevCostPerMsg ? current : prev;
-              })
-            : null;
+        // Find most cost-effective model (lowest cost per message with at least 5 messages)
+        const modelsWithCost = stats.filter((s) => s.totalMessages >= 5 && s.totalCost > 0);
+        const mostCostEffective =
+            modelsWithCost.length > 0
+                ? modelsWithCost.reduce((prev, current) => {
+                    const prevCostPerMsg = prev.totalCost / prev.totalMessages;
+                    const currentCostPerMsg = current.totalCost / current.totalMessages;
+                    return currentCostPerMsg < prevCostPerMsg ? current : prev;
+                })
+                : null;
 
         console.log(`[analytics] Generated insights: ${totalMessages} messages, $${totalCost.toFixed(2)} cost`);
-        
+
         return {
             stats,
             insights: {

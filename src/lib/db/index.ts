@@ -1,8 +1,9 @@
+// @ts-ignore - bun:sqlite is available at runtime
 import { Database } from 'bun:sqlite';
 import { drizzle } from 'drizzle-orm/bun-sqlite';
 import * as schema from './schema';
 import { existsSync, mkdirSync } from 'fs';
-import { dirname, join } from 'path';
+import { join } from 'path';
 
 // Ensure data directory exists
 const dataDir = join(process.cwd(), 'data');

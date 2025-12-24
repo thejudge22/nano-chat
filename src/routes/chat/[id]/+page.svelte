@@ -2,10 +2,11 @@
 	import { page } from '$app/state';
 	import { useCachedQuery, api, invalidateQueryPattern } from '$lib/cache/cached-query.svelte';
 	import type { Id } from '$lib/db/types';
+	import type { Conversation, Message } from '$lib/api';
 	import { session } from '$lib/state/session.svelte';
 	import { watch } from 'runed';
 	import LoadingDots from './loading-dots.svelte';
-	import Message from './message.svelte';
+	import MessageComponent from './message.svelte';
 	import { last } from '$lib/utils/array';
 	import { settings } from '$lib/state/settings.svelte';
 	import Button from '$lib/components/ui/button/button.svelte';
@@ -13,11 +14,11 @@
 	import GlobeIcon from '~icons/lucide/globe';
 	import LoaderCircleIcon from '~icons/lucide/loader-circle';
 
-	const messages = useCachedQuery(api.messages.getAllFromConversation, () => ({
+	const messages = useCachedQuery<Message[]>(api.messages.getAllFromConversation, () => ({
 		conversationId: page.params.id ?? '',
 	}));
 
-	const conversation = useCachedQuery(api.conversations.getById, () => ({
+	const conversation = useCachedQuery<Conversation>(api.conversations.getById, () => ({
 		id: page.params.id as Id<'conversations'>,
 	}));
 
@@ -78,12 +79,12 @@
 
 	$effect(() => {
 		const isGenerating = conversation.data?.generating ?? false;
-		
+
 		if (isGenerating) {
 			wasGenerating = true;
 			const interval = setInterval(() => {
-				conversation.refetch();
-				messages.refetch();
+				conversation.refetch?.();
+				messages.refetch?.();
 			}, 750);
 			return () => clearInterval(interval);
 		} else if (wasGenerating) {
@@ -91,7 +92,7 @@
 			wasGenerating = false;
 			invalidateQueryPattern(api.conversations.get.url);
 			// Also refetch final messages state
-			messages.refetch();
+			messages.refetch?.();
 		}
 	});
 </script>
@@ -111,10 +112,10 @@
 		</div>
 	{:else}
 		{#each messages.data ?? [] as message (message.id)}
-			<Message {message} />
+			<MessageComponent {message} />
 		{/each}
 		{#if conversation.data?.generating}
-		{#if lastMessage?.webSearchEnabled}
+			{#if lastMessage?.webSearchEnabled}
 				{#if lastMessage?.annotations === undefined || lastMessage?.annotations?.length === 0}
 					<div class="flex place-items-center gap-2">
 						<GlobeIcon class="inline size-4 shrink-0" />

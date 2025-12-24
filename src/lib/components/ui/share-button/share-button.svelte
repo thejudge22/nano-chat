@@ -19,15 +19,17 @@
 
 	const clipboard = new UseClipboard();
 
+	import type { Conversation, UserSettings } from '$lib/api';
+
 	let { conversationId } = $props<{
 		conversationId: string;
 	}>();
 
-	const conversationQuery = useCachedQuery(api.conversations.getById, () => ({
+	const conversationQuery = useCachedQuery<Conversation>(api.conversations.getById, () => ({
 		id: conversationId,
 	}));
 
-	const settingsQuery = useCachedQuery(api.user_settings.get, {});
+	const settingsQuery = useCachedQuery<UserSettings>(api.user_settings.get, {});
 
 	let isPublic = $derived(Boolean(conversationQuery.data?.public));
 	let isToggling = $state(false);
@@ -109,7 +111,7 @@
 		if (result.isErr() || !result.value.ok) {
 			karakeepStatus = 'error';
 			const errorText = result.isErr()
-				? result.error.message
+				? (result.error as Error).message
 				: await result.value.text();
 			karakeepMessage = `Failed to save: ${errorText}`;
 		} else {
@@ -190,12 +192,7 @@
 				<p class="text-muted-foreground mb-3 text-xs">
 					Save this conversation as a markdown bookmark in Karakeep
 				</p>
-				<Button
-					onclick={saveToKarakeep}
-					disabled={karakeepSaving}
-					variant="outline"
-					class="w-full"
-				>
+				<Button onclick={saveToKarakeep} disabled={karakeepSaving} variant="outline" class="w-full">
 					<BookmarkIcon class="mr-2 size-4" />
 					{karakeepSaving ? 'Saving...' : 'Save to Karakeep'}
 				</Button>

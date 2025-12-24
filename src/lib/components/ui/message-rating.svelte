@@ -25,9 +25,13 @@
 
 	let { messageId, initialRating, onRate }: Props = $props();
 
+	// svelte-ignore state_referenced_locally
 	let thumbs = $state<'up' | 'down' | undefined>(initialRating?.thumbs);
+	// svelte-ignore state_referenced_locally
 	let starRating = $state<number | undefined>(initialRating?.rating);
+	// svelte-ignore state_referenced_locally
 	let selectedCategories = $state<string[]>(initialRating?.categories || []);
+	// svelte-ignore state_referenced_locally
 	let feedback = $state<string>(initialRating?.feedback || '');
 	let showDetailedFeedback = $state(false);
 	let isSubmitting = $state(false);
@@ -135,7 +139,7 @@
 	<div class="border-border bg-muted/30 mt-2 rounded-lg border p-4">
 		<!-- Star rating -->
 		<div class="mb-4">
-			<label class="text-muted-foreground mb-2 block text-sm">Rating</label>
+			<span class="text-muted-foreground mb-2 block text-sm">Rating</span>
 			<div class="flex gap-1">
 				{#each [1, 2, 3, 4, 5] as star}
 					<button
@@ -154,7 +158,7 @@
 
 		<!-- Categories -->
 		<div class="mb-4">
-			<label class="text-muted-foreground mb-2 block text-sm">Categories</label>
+			<span class="text-muted-foreground mb-2 block text-sm">Categories</span>
 			<div class="flex flex-wrap gap-2">
 				{#each categories as category}
 					<button
@@ -175,8 +179,11 @@
 
 		<!-- Text feedback -->
 		<div class="mb-4">
-			<label class="text-muted-foreground mb-2 block text-sm">Additional feedback (optional)</label>
+			<label for="feedback" class="text-muted-foreground mb-2 block text-sm"
+				>Additional feedback (optional)</label
+			>
 			<textarea
+				id="feedback"
 				bind:value={feedback}
 				placeholder="Share your thoughts..."
 				class="bg-background border-border w-full rounded-md border px-3 py-2 text-sm"

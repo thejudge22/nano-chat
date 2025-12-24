@@ -1,5 +1,5 @@
 
-import { Result, ResultAsync, ok, err } from 'neverthrow';
+import { Result, ResultAsync } from 'neverthrow';
 
 export type NanoGPTConnectionData = {
 	balance: {

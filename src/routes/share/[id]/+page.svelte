@@ -2,19 +2,20 @@
 	import { page } from '$app/state';
 	import { useCachedQuery, api } from '$lib/cache/cached-query.svelte.js';
 	import type { Id } from '$lib/db/types';
+	import type { Conversation, Message } from '$lib/api';
 	import { GitHub, Svelte } from '$lib/components/icons';
 	import { Button } from '$lib/components/ui/button';
 	import { LightSwitch } from '$lib/components/ui/light-switch/index.js';
 	import Tooltip from '$lib/components/ui/tooltip.svelte';
-	import Message from '../../chat/[id]/message.svelte';
+	import MessageComponent from '../../chat/[id]/message.svelte';
 
 	const conversationId = page.params.id;
 
-	const conversationQuery = useCachedQuery(api.conversations.getPublicById, {
+	const conversationQuery = useCachedQuery<Conversation>(api.conversations.getPublicById, {
 		id: conversationId,
 	});
 
-	const messagesQuery = useCachedQuery(api.messages.getByConversationPublic, {
+	const messagesQuery = useCachedQuery<Message[]>(api.messages.getByConversationPublic, {
 		conversationId: conversationId,
 		public: 'true',
 	});
@@ -94,7 +95,7 @@
 				<div class="flex flex-col space-y-0">
 					{#if messagesQuery.data && messagesQuery.data.length > 0}
 						{#each messagesQuery.data as message (message.id)}
-							<Message {message} />
+							<MessageComponent {message} />
 						{/each}
 					{:else}
 						<div

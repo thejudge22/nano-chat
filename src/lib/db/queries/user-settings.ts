@@ -30,7 +30,7 @@ export async function createUserSettings(
             updatedAt: now,
         })
         .returning();
-    return result;
+    return result!;
 }
 
 export async function updateUserSettings(

@@ -30,7 +30,7 @@ export async function upsertUserMemory(
             })
             .where(eq(userMemories.userId, userId))
             .returning();
-        return result;
+        return result!;
     }
 
     const [result] = await db
@@ -45,7 +45,7 @@ export async function upsertUserMemory(
             updatedAt: now,
         })
         .returning();
-    return result;
+    return result!;
 }
 
 export async function deleteUserMemory(userId: string): Promise<void> {

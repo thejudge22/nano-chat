@@ -1,8 +1,9 @@
+/// <reference types="vitest" />
 import tailwindcss from '@tailwindcss/vite';
 import { svelteTesting } from '@testing-library/svelte/vite';
 import { sveltekit } from '@sveltejs/kit/vite';
 import Icons from 'unplugin-icons/vite';
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';
 
 const isDev = process.env.NODE_ENV === 'development';
 

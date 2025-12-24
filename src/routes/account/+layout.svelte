@@ -13,10 +13,11 @@
 	import { cn } from '$lib/utils/utils.js';
 	import { useLastChat } from '$lib/state/last-chat.svelte.js';
 	import { keybinds, KEYBIND_LABELS, KEYBIND_ACTIONS } from '$lib/state/keybinds.svelte';
+	import type { UserSettings } from '$lib/api';
 
 	let { data, children } = $props();
 
-	const settings = useCachedQuery(api.user_settings.get, {
+	const settings = useCachedQuery<UserSettings>(api.user_settings.get, {
 		session_token: session.current?.session.token ?? '',
 	});
 
@@ -87,9 +88,12 @@
 						/>
 						<span
 							{...avatar.fallback}
-							class={cn('flex size-40 items-center justify-center rounded-full bg-muted text-4xl font-semibold', {
-								'blur-[20px]': settings.data?.privacyMode,
-							})}
+							class={cn(
+								'bg-muted flex size-40 items-center justify-center rounded-full text-4xl font-semibold',
+								{
+									'blur-[20px]': settings.data?.privacyMode,
+								}
+							)}
 						>
 							{data.session.user.name
 								.split(' ')

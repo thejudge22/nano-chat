@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { useCachedQuery, api } from '$lib/cache/cached-query.svelte';
+	import type { Conversation, Message } from '$lib/api';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import Modal from '$lib/components/ui/modal/modal.svelte';
 	import { session } from '$lib/state/session.svelte';
@@ -16,7 +17,13 @@
 
 	const debouncedInput = new Debounced(() => input, 500);
 
-	const search = useCachedQuery(api.conversations.search, () => ({
+	type SearchResult = {
+		conversation: Conversation;
+		messages: Message[];
+		titleMatch: boolean;
+	};
+
+	const search = useCachedQuery<SearchResult[]>(api.conversations.search, () => ({
 		search: debouncedInput.current,
 		mode: searchMode,
 	}));

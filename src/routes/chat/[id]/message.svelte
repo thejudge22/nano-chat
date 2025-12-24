@@ -86,8 +86,8 @@
 				session_token: session.current?.session.token ?? '',
 				conversation_id: cid,
 				model_id: settings.modelId,
-				images: message.images,
-				web_search_enabled: message.webSearchEnabled,
+				images: message.images ?? undefined,
+				web_search_enabled: message.webSearchEnabled ?? undefined,
 			});
 
 			if (generateRes.isErr()) {
@@ -139,7 +139,7 @@
 					...data,
 				}),
 			});
-			
+
 			if (!response.ok) {
 				const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
 				console.error('[message] Failed to submit rating:', errorData);
@@ -168,7 +168,7 @@
 					action,
 				}),
 			});
-			
+
 			if (!response.ok) {
 				const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
 				console.error(`[message] Failed to log ${action} interaction:`, errorData);
@@ -237,7 +237,7 @@
 				{/if}
 			</div>
 		{/if}
-		<div class={style({ role: message.role })}>
+		<div class={style({ role: message.role as 'user' | 'assistant' })}>
 			{#if message.error}
 				<div class="text-destructive">
 					<pre class="!bg-sidebar"><code>{message.error}</code></pre>

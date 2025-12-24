@@ -41,7 +41,7 @@ export async function createMessage(
         .set({ updatedAt: now })
         .where(eq(conversations.id, conversationId));
 
-    return result;
+    return result!;
 }
 
 export async function updateMessageContent(

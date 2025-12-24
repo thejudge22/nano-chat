@@ -5,6 +5,7 @@
 	import { session } from '$lib/state/session.svelte.js';
 	import { models } from '$lib/state/models.svelte';
 	import { Provider } from '$lib/types';
+	import type { Assistant, UserEnabledModel } from '$lib/api';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import * as Card from '$lib/components/ui/card';
 	import Input from '$lib/components/ui/input/input.svelte';
@@ -20,12 +21,15 @@
 
 	models.init();
 
-	const enabledModelsQuery = useCachedQuery(api.user_enabled_models.get_enabled, {});
+	const enabledModelsQuery = useCachedQuery<UserEnabledModel[]>(
+		api.user_enabled_models.get_enabled,
+		{}
+	);
 	const enabledModels = $derived(
-		Object.values(enabledModelsQuery.data ?? {}) as { id: string; modelId: string }[]
+		(enabledModelsQuery.data ?? []) as { id: string; modelId: string }[]
 	);
 
-	const assistantsQuery = useCachedQuery(api.assistants.list, {
+	const assistantsQuery = useCachedQuery<Assistant[]>(api.assistants.list, {
 		session_token: session.current?.session.token ?? '',
 	});
 

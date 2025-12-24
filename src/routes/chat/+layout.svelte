@@ -4,6 +4,7 @@
 	import { useCachedQuery, api, invalidateQueryPattern } from '$lib/cache/cached-query.svelte.js';
 	import { extractUrlsByType } from '$lib/backend/url-scraper';
 	import type { Doc, Id } from '$lib/db/types';
+	import type { Assistant, Conversation, UserSettings, Message, UserRule } from '$lib/api';
 	import AppSidebar from '$lib/components/app-sidebar.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { ImageModal } from '$lib/components/ui/image-modal';
@@ -79,7 +80,7 @@
 		);
 	});
 
-	const assistantsQuery = useCachedQuery(api.assistants.list, {
+	const assistantsQuery = useCachedQuery<Assistant[]>(api.assistants.list, {
 		session_token: session.current?.session.token ?? '',
 	});
 
@@ -90,8 +91,8 @@
 			const defaultAssistant = assistantsQuery.data.find((a: any) => a.isDefault);
 			if (defaultAssistant) {
 				selectedAssistantId.current = defaultAssistant.id;
-			} else if (assistantsQuery.data.length > 0) {
-				selectedAssistantId.current = assistantsQuery.data[0].id;
+			} else if (assistantsQuery.data && assistantsQuery.data.length > 0) {
+				selectedAssistantId.current = assistantsQuery.data[0]?.id ?? '';
 			}
 		}
 	});
@@ -124,7 +125,7 @@
 		}
 	});
 
-	const currentConversationQuery = useCachedQuery(api.conversations.getById, () => ({
+	const currentConversationQuery = useCachedQuery<Conversation>(api.conversations.getById, () => ({
 		id: page.params.id,
 	}));
 
@@ -174,11 +175,11 @@
 	let youtubeUrlDetected = $state(false);
 
 	// Load settings for YouTube transcripts
-	const userSettings = useCachedQuery(api.user_settings.get, {});
+	const userSettings = useCachedQuery<UserSettings>(api.user_settings.get, {});
 	const transcriptsEnabled = $derived(userSettings.data?.youtubeTranscriptsEnabled ?? false);
 
 	// Import messages API to check for YouTube URLs
-	const messages = useCachedQuery(
+	const messages = useCachedQuery<Message[]>(
 		api.messages.getAllFromConversation,
 		() => ({
 			conversationId: page.params.id ?? '',
@@ -293,7 +294,7 @@
 		enhancingPrompt = false;
 	}
 
-	const rulesQuery = useCachedQuery(api.user_rules.all, {
+	const rulesQuery = useCachedQuery<UserRule[]>(api.user_rules.all, {
 		session_token: session.current?.session.token ?? '',
 	});
 
@@ -323,24 +324,6 @@
 	let isUploadingDocuments = $state(false);
 	let fileInput = $state<HTMLInputElement>();
 	let documentInput = $state<HTMLInputElement>();
-	let imageModal = $state<{ open: boolean; imageUrl: string; fileName: string }>({
-		open: false,
-		imageUrl: '',
-		fileName: '',
-	});
-
-	let documentModal = $state<{
-		open: boolean;
-		documentUrl: string;
-		fileName: string;
-		fileType: 'pdf' | 'markdown' | 'text';
-		content: string;
-	}>({
-		open: false,
-		documentUrl: '',
-		fileName: '',
-		content: '',
-	});
 
 	usePrompt(
 		() => message.current,
@@ -374,6 +357,74 @@
 		// return supportsDocuments(currentModel);
 	});
 
+	async function handleFilesSelect(files: File[]) {
+		if (!files.length || !session.current?.session.token) return;
+
+		const imageFiles = files.filter((f) => f.type.startsWith('image/'));
+		const documentFiles = files.filter((f) => !f.type.startsWith('image/'));
+
+		if (imageFiles.length > 0) {
+			isUploading = true;
+			const uploadedImages: { url: string; storage_id: string; fileName?: string }[] = [];
+			try {
+				for (const file of imageFiles) {
+					const compressedFile = await compressImage(file, 1024 * 1024);
+					const uploadResult = await fetch('/api/storage', {
+						method: 'POST',
+						headers: { 'Content-Type': file.type },
+						credentials: 'include',
+						body: compressedFile,
+					});
+					if (!uploadResult.ok) throw new Error(`Upload failed: ${uploadResult.statusText}`);
+					const { storageId, url } = await uploadResult.json();
+					if (url) uploadedImages.push({ url, storage_id: storageId, fileName: file.name });
+				}
+				selectedImages = [...selectedImages, ...uploadedImages];
+			} catch (error) {
+				console.error('Image upload failed:', error);
+			} finally {
+				isUploading = false;
+			}
+		}
+
+		if (documentFiles.length > 0) {
+			isUploadingDocuments = true;
+			const uploadedDocuments: {
+				url: string;
+				storage_id: string;
+				fileName?: string;
+				fileType: 'pdf' | 'markdown' | 'text';
+			}[] = [];
+			try {
+				const validation = validateFiles(documentFiles, ['pdf', 'markdown', 'text']);
+				if (validation.errors.length > 0) {
+					console.error('File validation errors:', validation.errors);
+					// TODO: Show user-friendly error messages
+					return;
+				}
+				for (const file of validation.validFiles) {
+					const fileType = getFileType(file) as 'pdf' | 'markdown' | 'text';
+					const uploadResult = await fetch('/api/storage', {
+						method: 'POST',
+						headers: { 'Content-Type': file.type },
+						credentials: 'include',
+						body: file,
+					});
+					if (!uploadResult.ok) throw new Error(`Upload failed: ${uploadResult.statusText}`);
+					const { storageId, url } = await uploadResult.json();
+					if (url)
+						uploadedDocuments.push({ url, storage_id: storageId, fileName: file.name, fileType });
+				}
+				selectedDocuments = [...selectedDocuments, ...uploadedDocuments];
+			} catch (error) {
+				console.error('Document upload failed:', error);
+			} finally {
+				isUploadingDocuments = false;
+			}
+		}
+	}
+
+	// Get file upload builders (only if not restricted)
 	const fileUpload = new FileUpload({
 		multiple: true,
 		accept: 'image/*',
@@ -386,112 +437,35 @@
 		maxSize: 20 * 1024 * 1024, // 20MB
 	});
 
-	async function handleFileChange(files: File[]) {
-		if (!files.length || !session.current?.session.token) return;
-
-		isUploading = true;
-		const uploadedFiles: { url: string; storage_id: string; fileName?: string }[] = [];
-
-		try {
-			for (const file of files) {
-				// Skip non-image files
-				if (!file.type.startsWith('image/')) {
-					console.warn('Skipping non-image file:', file.name);
-					continue;
-				}
-
-				// Compress image to max 1MB
-				const compressedFile = await compressImage(file, 1024 * 1024);
-
-				// Upload file to local storage API
-				const uploadResult = await fetch('/api/storage', {
-					method: 'POST',
-					headers: {
-						'Content-Type': file.type,
-					},
-					credentials: 'include',
-					body: compressedFile,
-				});
-
-				if (!uploadResult.ok) {
-					throw new Error(`Upload failed: ${uploadResult.statusText}`);
-				}
-
-				const { storageId, url } = await uploadResult.json();
-
-				if (url) {
-					uploadedFiles.push({ url, storage_id: storageId, fileName: file.name });
-				}
-			}
-
-			selectedImages = [...selectedImages, ...uploadedFiles];
-		} catch (error) {
-			console.error('Upload failed:', error);
-		} finally {
-			isUploading = false;
+	// Handle file selection effects
+	$effect(() => {
+		if (fileUpload.selected.size > 0) {
+			handleFilesSelect(Array.from(fileUpload.selected));
+			fileUpload.clear();
 		}
-	}
+	});
 
-	async function handleDocumentChange(files: File[]) {
-		if (!files.length || !session.current?.session.token) return;
-
-		isUploadingDocuments = true;
-		const uploadedFiles: {
-			url: string;
-			storage_id: string;
-			fileName?: string;
-			fileType: 'pdf' | 'markdown' | 'text';
-		}[] = [];
-
-		try {
-			// Validate files
-			const validation = validateFiles(files, ['pdf', 'markdown', 'text']);
-
-			if (validation.errors.length > 0) {
-				console.error('File validation errors:', validation.errors);
-				// TODO: Show user-friendly error messages
-				return;
-			}
-
-			for (const file of validation.validFiles) {
-				const fileType = getFileType(file) as 'pdf' | 'markdown' | 'text';
-
-				// Upload file to local storage API
-				const uploadResult = await fetch('/api/storage', {
-					method: 'POST',
-					headers: {
-						'Content-Type': file.type,
-					},
-					credentials: 'include',
-					body: file,
-				});
-
-				if (!uploadResult.ok) {
-					throw new Error(`Upload failed: ${uploadResult.statusText}`);
-				}
-
-				const { storageId, url } = await uploadResult.json();
-
-				if (url) {
-					uploadedFiles.push({ url, storage_id: storageId, fileName: file.name, fileType });
-				}
-			}
-
-			selectedDocuments = [...selectedDocuments, ...uploadedFiles];
-		} catch (error) {
-			console.error('Document upload failed:', error);
-		} finally {
-			isUploadingDocuments = false;
+	$effect(() => {
+		if (documentUpload.selected.size > 0) {
+			handleFilesSelect(Array.from(documentUpload.selected));
+			documentUpload.clear();
 		}
-	}
+	});
 
-	function removeImage(index: number) {
-		selectedImages = selectedImages.filter((_, i) => i !== index);
-	}
+	// Define builders manually to satisfy type checker if needed, or simply use
+	const imageSelect = fileUpload.input;
+	const docSelect = documentUpload.input;
 
-	function removeDocument(index: number) {
-		selectedDocuments = selectedDocuments.filter((_, i) => i !== index);
-	}
+	// Image modal state
+	let imageModal = $state<{
+		open: boolean;
+		imageUrl: string;
+		fileName: string;
+	}>({
+		open: false,
+		imageUrl: '',
+		fileName: '',
+	});
 
 	function openImageModal(imageUrl: string, fileName: string) {
 		imageModal = {
@@ -500,6 +474,21 @@
 			fileName,
 		};
 	}
+
+	// Document preview modal state
+	let documentModal = $state<{
+		open: boolean;
+		documentUrl: string;
+		fileName: string;
+		fileType: 'pdf' | 'markdown' | 'text';
+		content: string;
+	}>({
+		open: false,
+		documentUrl: '',
+		fileName: '',
+		fileType: 'text',
+		content: '',
+	});
 
 	async function openDocumentModal(
 		documentUrl: string,
@@ -530,19 +519,13 @@
 		};
 	}
 
-	$effect(() => {
-		if (fileUpload.selected.size > 0) {
-			handleFileChange(Array.from(fileUpload.selected));
-			fileUpload.clear();
-		}
-	});
+	function removeImage(index: number) {
+		selectedImages = selectedImages.filter((_, i) => i !== index);
+	}
 
-	$effect(() => {
-		if (documentUpload.selected.size > 0) {
-			handleDocumentChange(Array.from(documentUpload.selected));
-			documentUpload.clear();
-		}
-	});
+	function removeDocument(index: number) {
+		selectedDocuments = selectedDocuments.filter((_, i) => i !== index);
+	}
 
 	const suggestedRules = $derived.by(() => {
 		if (!rulesQuery.data || rulesQuery.data.length === 0) return;
@@ -919,8 +902,11 @@
 							<div class="relative flex flex-grow flex-row items-start">
 								<input {...fileUpload.input} bind:this={fileInput} />
 								<input {...documentUpload.input} bind:this={documentInput} />
+								<!-- svelte-ignore a11y_autofocus -->
 								<textarea
-									{...pick(popover.trigger, ['id', 'style', 'onfocusout', 'onfocus'])}
+									style={popover.trigger.style}
+									onfocusout={popover.trigger.onfocusout}
+									onfocus={popover.trigger.onfocus}
 									bind:this={textarea}
 									disabled={textareaDisabled}
 									class="text-foreground placeholder:text-muted-foreground/40 max-h-64 min-h-[40px] w-full resize-none !overflow-y-auto bg-transparent px-4 py-2 text-[15px] leading-relaxed outline-none disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-[50px]"
@@ -961,7 +947,7 @@
 									bind:value={message.current}
 									autofocus
 									autocomplete="off"
-									{@attach autosize.attachment}
+									use:autosize.attachment
 								></textarea>
 							</div>
 							<div class="mt-1 flex w-full flex-row items-end justify-between px-2 pb-1">

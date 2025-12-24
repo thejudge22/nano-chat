@@ -44,7 +44,7 @@ export async function createRule(
         })
         .returning();
 
-    return result;
+    return result!;
 }
 
 export async function updateRule(
@@ -68,7 +68,7 @@ export async function updateRule(
         .where(eq(userRules.id, ruleId))
         .returning();
 
-    return result;
+    return result!;
 }
 
 export async function renameRule(userId: string, ruleId: string, name: string): Promise<UserRule> {
@@ -97,7 +97,7 @@ export async function renameRule(userId: string, ruleId: string, name: string): 
         .where(eq(userRules.id, ruleId))
         .returning();
 
-    return result;
+    return result!;
 }
 
 export async function deleteRule(userId: string, ruleId: string): Promise<void> {

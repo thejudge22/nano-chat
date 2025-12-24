@@ -42,26 +42,26 @@ export function getFileType(file: File): 'image' | 'pdf' | 'markdown' | 'text' |
   const mimeType = file.type.toLowerCase();
 
   // Check image files
-  if (FILE_TYPE_CONFIGS.image.allowedMimeTypes.includes(mimeType) ||
-      FILE_TYPE_CONFIGS.image.allowedExtensions.includes(extension)) {
+  if ((FILE_TYPE_CONFIGS.image.allowedMimeTypes as readonly string[]).includes(mimeType) ||
+    (FILE_TYPE_CONFIGS.image.allowedExtensions as readonly string[]).includes(extension)) {
     return 'image';
   }
 
   // Check PDF files
-  if (FILE_TYPE_CONFIGS.pdf.allowedMimeTypes.includes(mimeType) ||
-      FILE_TYPE_CONFIGS.pdf.allowedExtensions.includes(extension)) {
+  if ((FILE_TYPE_CONFIGS.pdf.allowedMimeTypes as readonly string[]).includes(mimeType) ||
+    (FILE_TYPE_CONFIGS.pdf.allowedExtensions as readonly string[]).includes(extension)) {
     return 'pdf';
   }
 
   // Check markdown files
-  if (FILE_TYPE_CONFIGS.markdown.allowedMimeTypes.includes(mimeType) ||
-      FILE_TYPE_CONFIGS.markdown.allowedExtensions.includes(extension)) {
+  if ((FILE_TYPE_CONFIGS.markdown.allowedMimeTypes as readonly string[]).includes(mimeType) ||
+    (FILE_TYPE_CONFIGS.markdown.allowedExtensions as readonly string[]).includes(extension)) {
     return 'markdown';
   }
 
   // Check text files
-  if (FILE_TYPE_CONFIGS.text.allowedMimeTypes.includes(mimeType) ||
-      FILE_TYPE_CONFIGS.text.allowedExtensions.includes(extension)) {
+  if ((FILE_TYPE_CONFIGS.text.allowedMimeTypes as readonly string[]).includes(mimeType) ||
+    (FILE_TYPE_CONFIGS.text.allowedExtensions as readonly string[]).includes(extension)) {
     return 'text';
   }
 
@@ -105,7 +105,7 @@ export function validateFile(file: File, allowedTypes: Array<'image' | 'pdf' | '
   }
 
   // Check MIME type
-  if (!config.allowedMimeTypes.includes(file.type) && !config.allowedExtensions.includes(getFileExtension(file.name))) {
+  if (!(config.allowedMimeTypes as readonly string[]).includes(file.type) && !(config.allowedExtensions as readonly string[]).includes(getFileExtension(file.name))) {
     return {
       isValid: false,
       error: `Invalid file format for ${fileType}. Expected: ${config.allowedMimeTypes.join(', ')} or ${config.allowedExtensions.join(', ')}`
@@ -130,7 +130,7 @@ export function validateFiles(files: FileList | File[], allowedTypes?: Array<'im
 
   Array.from(files).forEach(file => {
     const validation = validateFile(file, allowedTypes);
-    
+
     if (validation.isValid) {
       validFiles.push(file);
       if (validation.fileType) {
@@ -167,10 +167,10 @@ export function getFileIcon(fileType: 'image' | 'pdf' | 'markdown' | 'text'): st
 // Get human readable file size
 export function getFormattedFileSize(bytes: number): string {
   if (bytes === 0) return '0 Bytes';
-  
+
   const k = 1024;
   const sizes = ['Bytes', 'KB', 'MB', 'GB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  
+
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
 }

@@ -17,7 +17,7 @@ import { join, resolve } from 'path';
 import { auth } from '$lib/auth';
 import { Provider, type Annotation } from '$lib/types';
 import { error, json, type RequestHandler } from '@sveltejs/kit';
-import { err, ok, Result, ResultAsync } from 'neverthrow';
+import { Result, ResultAsync, ok, err, okAsync } from 'neverthrow';
 import OpenAI from 'openai';
 import { z } from 'zod/v4';
 import { generationAbortControllers } from './cache.js';
@@ -634,7 +634,7 @@ ${attachedRules.map((r) => `- ${r.name}: ${r.rule}`).join('\n')}`;
 		return;
 	}
 
-	const stream = streamResult.value;
+	const stream = streamResult.value as unknown as AsyncIterable<any>;
 	log('Background: OpenAI stream created successfully', startTime);
 
 	let content = '';

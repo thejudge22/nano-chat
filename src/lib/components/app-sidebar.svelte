@@ -3,6 +3,7 @@
 	import { page } from '$app/state';
 	import { useCachedQuery, api, invalidateQueryPattern } from '$lib/cache/cached-query.svelte';
 	import type { Doc, Id } from '$lib/db/types';
+	import type { Conversation, UserSettings } from '$lib/api';
 	import * as Sidebar from '$lib/components/ui/sidebar';
 	import { useSidebarControls } from '$lib/components/ui/sidebar';
 	import Tooltip from '$lib/components/ui/tooltip.svelte';
@@ -59,11 +60,11 @@
 		await goto(`/chat`);
 	}
 
-	const settings = useCachedQuery(api.user_settings.get, {
+	const settings = useCachedQuery<UserSettings>(api.user_settings.get, {
 		session_token: session.current?.session.token ?? '',
 	});
 
-	const conversationsQuery = useCachedQuery(api.conversations.get, {
+	const conversationsQuery = useCachedQuery<Conversation[]>(api.conversations.get, {
 		session_token: session.current?.session.token ?? '',
 	});
 
@@ -148,7 +149,7 @@
 			{#snippet trigger(tooltip)}
 				<a
 					href="/chat"
-					class="bg-primary hover:opacity-90 text-primary-foreground font-fake-proxima w-full rounded-lg px-4 py-2 text-center text-sm font-semibold tracking-[-0.01em] transition-all duration-200"
+					class="bg-primary text-primary-foreground font-fake-proxima w-full rounded-lg px-4 py-2 text-center text-sm font-semibold tracking-[-0.01em] transition-all duration-200 hover:opacity-90"
 					{...tooltip.trigger}
 					onclick={controls.closeMobile}
 				>
@@ -161,7 +162,7 @@
 	<div class="mt-2 flex w-full flex-col gap-2 px-2">
 		<button
 			type="button"
-			class="text-muted-foreground/70 hover:text-foreground flex items-center gap-2 px-3 py-2 text-sm transition-all bg-secondary/20 rounded-lg border border-transparent hover:border-border"
+			class="text-muted-foreground/70 hover:text-foreground bg-secondary/20 hover:border-border flex items-center gap-2 rounded-lg border border-transparent px-3 py-2 text-sm transition-all"
 			onclick={() => (searchModalOpen = true)}
 		>
 			<SearchIcon class="size-4" />
@@ -177,9 +178,9 @@
 				{@const IconComponent = group.icon}
 				{#if group.conversations.length > 0}
 					<div class="px-2 py-1" class:mt-2={index > 0}>
-						<h3 class="text-muted-foreground text-[11px] font-bold uppercase tracking-wider">
+						<h3 class="text-muted-foreground text-[11px] font-bold tracking-wider uppercase">
 							{#if IconComponent}
-								<IconComponent class="inline size-3 mr-1" />
+								<IconComponent class="mr-1 inline size-3" />
 							{/if}
 							{group.label}
 						</h3>
@@ -194,29 +195,32 @@
 							<div
 								class={cn(
 									'relative flex w-full items-center justify-between overflow-clip rounded-lg transition-colors',
-									{ 'bg-sidebar-accent text-sidebar-accent-foreground': isActive, 'hover:bg-sidebar-accent/50': !isActive }
+									{
+										'bg-sidebar-accent text-sidebar-accent-foreground': isActive,
+										'hover:bg-sidebar-accent/50': !isActive,
+									}
 								)}
 							>
 								<p class="truncate rounded-lg py-2 pr-4 pl-3 whitespace-nowrap">
-								{#if conversation.branchedFrom}
-									<Tooltip>
-										{#snippet trigger(tooltip)}
-											<button
-												type="button"
-												class="hover:text-foreground text-muted-foreground/50 cursor-pointer transition-all"
-												onclick={(e) => {
-													e.preventDefault();
-													e.stopPropagation();
-													goto(`/chat/${conversation.branchedFrom}`);
-												}}
-												{...tooltip.trigger}
-											>
-												<SplitIcon class="mr-1 inline size-4" />
-											</button>
-										{/snippet}
-										Go to original conversation
-									</Tooltip>
-								{/if}
+									{#if conversation.branchedFrom}
+										<Tooltip>
+											{#snippet trigger(tooltip)}
+												<button
+													type="button"
+													class="hover:text-foreground text-muted-foreground/50 cursor-pointer transition-all"
+													onclick={(e) => {
+														e.preventDefault();
+														e.stopPropagation();
+														goto(`/chat/${conversation.branchedFrom}`);
+													}}
+													{...tooltip.trigger}
+												>
+													<SplitIcon class="mr-1 inline size-4" />
+												</button>
+											{/snippet}
+											Go to original conversation
+										</Tooltip>
+									{/if}
 									<span class="font-medium">{conversation?.title ?? 'Untitled'}</span>
 								</p>
 								<div class="pr-2">
@@ -281,7 +285,7 @@
 			class="from-sidebar pointer-events-none absolute right-0 bottom-0 left-0 z-10 h-4 bg-gradient-to-t to-transparent"
 		></div>
 	</div>
-	<div class="py-2 px-2">
+	<div class="px-2 py-2">
 		{#if page.data.session !== null}
 			<Button href="/account" variant="ghost" class="h-auto w-full justify-start gap-3 px-3 py-2">
 				<Avatar src={page.data.session?.user.image ?? undefined}>
@@ -295,9 +299,12 @@
 						/>
 						<span
 							{...avatar.fallback}
-							class={cn('bg-primary/20 flex size-8 items-center justify-center rounded-full text-xs font-bold', {
-								'blur-[6px]': settings.data?.privacyMode,
-							})}
+							class={cn(
+								'bg-primary/20 flex size-8 items-center justify-center rounded-full text-xs font-bold',
+								{
+									'blur-[6px]': settings.data?.privacyMode,
+								}
+							)}
 						>
 							{page.data.session?.user.name
 								.split(' ')
@@ -306,8 +313,10 @@
 						</span>
 					{/snippet}
 				</Avatar>
-				<div class="flex flex-col min-w-0">
-					<span class={cn('text-sm font-medium truncate', { 'blur-[6px]': settings.data?.privacyMode })}>
+				<div class="flex min-w-0 flex-col">
+					<span
+						class={cn('truncate text-sm font-medium', { 'blur-[6px]': settings.data?.privacyMode })}
+					>
 						{page.data.session?.user.name}
 					</span>
 				</div>

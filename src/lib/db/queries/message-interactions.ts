@@ -20,7 +20,7 @@ export async function logMessageInteraction(data: {
         })
         .returning();
 
-    return result;
+    return result!;
 }
 
 export async function getMessageInteractionsByMessage(
