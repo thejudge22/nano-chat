@@ -29,7 +29,7 @@
 
 ### Installation
 
-* Clone the repository ```git clone https://github.com/0xgingi/nanochat.git```
+* Clone the repository ```git clone https://github.com/nanogpt-community/nanochat.git```
 * ```cd nanochat```
 * ```cp .env.example .env```
 * Edit the .env file with your configuration
@@ -40,7 +40,7 @@
 ### Installation
 
 * Install Bun (https://bun.sh/)
-* Clone the repository ```git clone https://github.com/0xgingi/nanochat.git```
+* Clone the repository ```git clone https://github.com/nanogpt-community/nanochat.git```
 * ```cd nanochat```
 * ```cp .env.example .env```
 * Edit the .env file with your configuration

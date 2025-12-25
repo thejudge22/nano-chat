@@ -118,7 +118,7 @@
 			>
 				<div class="flex items-center gap-4">
 					<a
-						href="https://github.com/0xgingi/nanochat"
+						href="https://github.com/nanogpt-community/nanochat"
 						class="hover:text-foreground flex items-center gap-1 transition-colors"
 					>
 						Source on <GitHub class="inline size-3" />
