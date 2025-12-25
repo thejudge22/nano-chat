@@ -424,6 +424,45 @@
 		}
 	}
 
+	// Handle paste events to support pasting images and documents
+	function handlePaste(event: ClipboardEvent) {
+		const clipboardData = event.clipboardData;
+		if (!clipboardData) return;
+
+		// Supported document MIME types
+		const supportedDocTypes = ['application/pdf', 'text/plain', 'text/markdown', 'text/x-markdown'];
+
+		const files: File[] = [];
+		for (const item of clipboardData.items) {
+			const file = item.getAsFile();
+			if (!file) continue;
+
+			// Check if it's an image
+			if (item.type.startsWith('image/')) {
+				files.push(file);
+				continue;
+			}
+
+			// Check if it's a supported document type
+			if (supportedDocTypes.includes(item.type)) {
+				files.push(file);
+				continue;
+			}
+
+			// Also check file extension for documents (some systems don't set MIME type correctly)
+			const ext = file.name.split('.').pop()?.toLowerCase();
+			if (ext && ['pdf', 'md', 'markdown', 'txt'].includes(ext)) {
+				files.push(file);
+			}
+		}
+
+		if (files.length > 0) {
+			// Prevent default paste behavior for files
+			event.preventDefault();
+			handleFilesSelect(files);
+		}
+	}
+
 	// Get file upload builders (only if not restricted)
 	const fileUpload = new FileUpload({
 		multiple: true,
@@ -945,6 +984,7 @@
 										}
 									}}
 									bind:value={message.current}
+									onpaste={handlePaste}
 									autofocus
 									autocomplete="off"
 									use:autosize.attachment
