@@ -7,7 +7,7 @@
 	import { settings } from '$lib/state/settings.svelte';
 	import { Provider } from '$lib/types';
 	import { fuzzysearch } from '$lib/utils/fuzzy-search';
-	import { supportsImages, supportsReasoning, supportsVideo } from '$lib/utils/model-capabilities';
+	import { supportsImages, supportsReasoning, supportsVideo, isImageOnlyModel } from '$lib/utils/model-capabilities';
 	import { capitalize } from '$lib/utils/strings';
 	import { cn } from '$lib/utils/utils';
 	import BrainIcon from '~icons/lucide/brain';
@@ -313,6 +313,20 @@
 											</div>
 										{/snippet}
 										Supports video generation
+									</Tooltip>
+								{/if}
+
+								{#if nanoGPTModel && isImageOnlyModel(nanoGPTModel)}
+									<Tooltip>
+										{#snippet trigger(tooltip)}
+											<div
+												{...tooltip.trigger}
+												class="rounded-md border-purple-500 bg-purple-500/50 p-1 text-purple-400"
+											>
+												<EyeIcon class="size-3" />
+											</div>
+										{/snippet}
+										Image generation only
 									</Tooltip>
 								{/if}
 

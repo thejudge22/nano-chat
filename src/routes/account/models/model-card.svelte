@@ -7,7 +7,7 @@
 	import { session } from '$lib/state/session.svelte.js';
 	import { ResultAsync } from 'neverthrow';
 	import { getFirstSentence } from '$lib/utils/strings';
-	import { supportsImages, supportsReasoning, supportsVideo } from '$lib/utils/model-capabilities';
+	import { supportsImages, supportsReasoning, supportsVideo, isImageOnlyModel } from '$lib/utils/model-capabilities';
 	import type { NanoGPTModel } from '$lib/backend/models/nano-gpt';
 	import Tooltip from '$lib/components/ui/tooltip.svelte';
 	import EyeIcon from '~icons/lucide/eye';
@@ -107,6 +107,19 @@
 						</div>
 					{/snippet}
 					Supports video generation
+				</Tooltip>
+			{/if}
+			{#if model && provider === 'nanogpt' && isImageOnlyModel(model)}
+				<Tooltip>
+					{#snippet trigger(tooltip)}
+						<div
+							{...tooltip.trigger}
+							class="rounded-md border-purple-500 bg-purple-500/50 p-1 text-purple-400"
+						>
+							<EyeIcon class="size-3" />
+						</div>
+					{/snippet}
+					Image generation only
 				</Tooltip>
 			{/if}
 			{#if model && provider === 'nanogpt' && model.subscription?.included}
