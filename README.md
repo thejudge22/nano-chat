@@ -1,6 +1,6 @@
 <div align="center">
   <h1>nanochat</h1>
-  <p><em>Open-source self-hostable chat client.</em></p>
+  <p><em>Open-source self-hostable chat client for <a href="nano-gpt.com">Nano-GPT</a>.</em></p>
   <p>Test it out at <a href="https://t3.0xgingi.xyz">t3.0xgingi.xyz</a></p>
   <p>Get 25 Free Daily prompts using any nano-gpt subscription model without needing an API key</p>
   <img src="image.png">
