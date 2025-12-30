@@ -90,7 +90,7 @@
 		return `${ratio.toFixed(0)}%`;
 	}
 
-	function getTopCategories(stat: typeof sortedStats[0]): Array<{ name: string; count: number }> {
+	function getTopCategories(stat: (typeof sortedStats)[0]): Array<{ name: string; count: number }> {
 		const categories = [
 			{ name: 'Accurate', count: stat.accurateCount },
 			{ name: 'Helpful', count: stat.helpfulCount },
@@ -123,7 +123,7 @@
 </script>
 
 <svelte:head>
-	<title>Model Analytics - thom.chat</title>
+	<title>Model Analytics - nanochat</title>
 </svelte:head>
 
 <div class="container mx-auto max-w-7xl p-6">
@@ -174,11 +174,11 @@
 			</div>
 		</div>
 
-		<div class="mb-8 bg-card rounded-lg border p-6">
+		<div class="bg-card mb-8 rounded-lg border p-6">
 			<div class="flex items-center justify-between">
 				<div class="min-w-0 flex-1">
 					<p class="text-muted-foreground mb-1 text-sm">Most Used Model</p>
-					<p class="break-words text-2xl font-bold" title={data.insights.mostUsedModel?.modelId}>
+					<p class="text-2xl font-bold break-words" title={data.insights.mostUsedModel?.modelId}>
 						{data.insights.mostUsedModel?.modelId ?? 'N/A'}
 					</p>
 				</div>
@@ -226,7 +226,7 @@
 					<table class="w-full">
 						<thead>
 							<tr class="border-border border-b">
-								<th class="pb-3 pr-4 text-left">
+								<th class="pr-4 pb-3 text-left">
 									<button
 										type="button"
 										onclick={() => toggleSort('model')}
@@ -238,7 +238,7 @@
 										{/if}
 									</button>
 								</th>
-								<th class="pb-3 pr-4 text-center">
+								<th class="pr-4 pb-3 text-center">
 									<button
 										type="button"
 										onclick={() => toggleSort('rating')}
@@ -250,7 +250,7 @@
 										{/if}
 									</button>
 								</th>
-								<th class="pb-3 pr-4 text-center">
+								<th class="pr-4 pb-3 text-center">
 									<button
 										type="button"
 										onclick={() => toggleSort('uses')}
@@ -262,7 +262,7 @@
 										{/if}
 									</button>
 								</th>
-								<th class="pb-3 pr-4 text-center">
+								<th class="pr-4 pb-3 text-center">
 									<button
 										type="button"
 										onclick={() => toggleSort('cost')}
@@ -274,7 +274,7 @@
 										{/if}
 									</button>
 								</th>
-								<th class="pb-3 pr-4 text-center">
+								<th class="pr-4 pb-3 text-center">
 									<button
 										type="button"
 										onclick={() => toggleSort('thumbsRatio')}
@@ -286,7 +286,7 @@
 										{/if}
 									</button>
 								</th>
-								<th class="pb-3 pr-4 text-center">
+								<th class="pr-4 pb-3 text-center">
 									<span class="text-muted-foreground font-medium">Top Categories</span>
 								</th>
 								<th class="pb-3 text-center">

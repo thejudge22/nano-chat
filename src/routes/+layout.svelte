@@ -49,28 +49,28 @@
 </script>
 
 <MetaTags
-	title="thom.chat"
+	title="nanochat"
 	description="The OpenSource T3Chat alternative."
 	keywords={['svelte', 't3', 'chat', 'ai']}
 	twitter={{
 		cardType: 'summary_large_image',
-		title: 'thom.chat',
+		title: 'nanochat',
 		description: 'The OpenSource T3Chat alternative.',
-		image: 'https://thom.chat/og.png',
-		creator: '@thomasglopes',
+		image: 'https://avatars.githubusercontent.com/u/251498604?s=200&v=4',
+		creator: 'nanogpt-community',
 	}}
 	openGraph={{
 		url: page.url.toString(),
 		type: 'website',
-		title: 'thom.chat',
+		title: 'nanochat',
 		description: 'The OpenSource T3Chat alternative.',
-		siteName: 'thom.chat',
+		siteName: 'nanochat',
 		images: [
 			{
-				url: 'https://thom.chat/og.png',
-				width: 2014,
-				height: 1143,
-				alt: 'thom.chat',
+				url: 'https://avatars.githubusercontent.com/u/251498604?s=200&v=4',
+				width: 512,
+				height: 512,
+				alt: 'nanochat',
 			},
 		],
 	}}

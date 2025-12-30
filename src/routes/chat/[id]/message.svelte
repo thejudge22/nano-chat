@@ -216,25 +216,50 @@
 			</div>
 		{/if}
 		{#if message.reasoning}
-			<div class="my-8">
+			<div class="mb-4">
 				<button
 					type="button"
-					class="text-muted-foreground flex items-center gap-1 pb-2 text-sm"
+					class="text-muted-foreground hover:text-foreground flex items-center gap-2 py-2 text-sm transition-colors"
 					aria-label="Toggle reasoning"
 					onclick={() => (showReasoning = !showReasoning)}
 				>
-					<ChevronRightIcon class={cn('inline size-4', { 'rotate-90': showReasoning })} />
+					<div
+						class="flex size-6 items-center justify-center rounded-md bg-gradient-to-br from-violet-500/20 to-purple-500/20"
+					>
+						<BrainIcon class="size-3.5 text-violet-500" />
+					</div>
+					<ChevronRightIcon
+						class={cn('size-4 transition-transform duration-200', { 'rotate-90': showReasoning })}
+					/>
 					{#if message.content.length === 0}
-						<ShinyText>Reasoning...</ShinyText>
+						<ShinyText class="font-medium">Thinking...</ShinyText>
 					{:else}
-						<span>Reasoning</span>
+						<span class="font-medium">Reasoning</span>
 					{/if}
 				</button>
-				{#if showReasoning}
-					<div class="text-muted-foreground/50 bg-popover relative rounded-lg p-2 text-xs">
-						{message.reasoning}
+				<div
+					class={cn(
+						'grid transition-all duration-300 ease-in-out',
+						showReasoning ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
+					)}
+				>
+					<div class="overflow-hidden">
+						<div
+							class="relative mt-2 overflow-hidden rounded-lg border border-violet-500/20 bg-gradient-to-r from-violet-500/5 to-transparent"
+						>
+							<div
+								class="absolute top-0 bottom-0 left-0 w-1 bg-gradient-to-b from-violet-500 via-purple-500 to-violet-500/50"
+							></div>
+							<div class="reasoning-content max-h-96 overflow-y-auto py-3 pr-3 pl-4">
+								<div
+									class="prose prose-sm dark:prose-invert prose-p:text-muted-foreground prose-headings:text-muted-foreground prose-strong:text-muted-foreground prose-li:text-muted-foreground max-w-none text-sm leading-relaxed"
+								>
+									<MarkdownRenderer content={message.reasoning} />
+								</div>
+							</div>
+						</div>
 					</div>
-				{/if}
+				</div>
 			</div>
 		{/if}
 		<div class={style({ role: message.role as 'user' | 'assistant' })}>
@@ -364,7 +389,10 @@
 				{#if message.webSearchEnabled}
 					<Tooltip>
 						{#snippet trigger(tooltip)}
-							<span class="text-muted-foreground flex items-center gap-1 text-xs" {...tooltip.trigger}>
+							<span
+								class="text-muted-foreground flex items-center gap-1 text-xs"
+								{...tooltip.trigger}
+							>
 								<GlobeIcon class="text-primary inline-block size-4 shrink-0" />
 								{#if annotations && annotations.length > 0}
 									<span class="text-primary">×{annotations.length}</span>
