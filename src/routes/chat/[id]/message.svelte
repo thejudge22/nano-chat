@@ -45,9 +45,10 @@
 
 	type Props = {
 		message: Doc<'messages'>;
+		childMessageId?: string;
 	};
 
-	let { message }: Props = $props();
+	let { message, childMessageId }: Props = $props();
 
 	let imageModal = $state<{ open: boolean; imageUrl: string; fileName: string }>({
 		open: false,
@@ -223,6 +224,54 @@
 			}
 		} catch (e) {
 			console.error('Error updating message:', e);
+		}
+	}
+	async function regenerateInPlace() {
+		if (!session.current?.session.token) return;
+
+		// Log regenerate interaction
+		await logInteraction('regenerate');
+
+		let messageIdToDelete = message.role === 'assistant' ? message.id : childMessageId;
+
+		if (messageIdToDelete) {
+			try {
+				const res = await fetch(api.messages.delete.url, {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						action: 'delete',
+						messageId: messageIdToDelete,
+					}),
+				});
+
+				if (!res.ok) {
+					console.error('Failed to delete message');
+					return;
+				}
+
+				invalidateQueryPattern(api.messages.getAllFromConversation.url);
+			} catch (e) {
+				console.error('Error deleting message:', e);
+				return;
+			}
+		}
+
+		if (settings.modelId) {
+			const generateRes = await callGenerateMessage({
+				session_token: session.current.session.token,
+				conversation_id: message.conversationId,
+				model_id: settings.modelId,
+				images: message.images ?? undefined,
+				web_search_enabled: message.webSearchEnabled ?? undefined,
+			});
+
+			if (generateRes.isErr()) {
+				console.error('Failed to regenerate:', generateRes.error);
+			} else {
+				invalidateQueryPattern(api.conversations.getById.url);
+				invalidateQueryPattern(api.messages.getAllFromConversation.url);
+			}
 		}
 	}
 </script>
@@ -458,7 +507,7 @@
 						<PencilIcon class="size-4" />
 						<span>Edit</span>
 					</DropdownMenu.Item>
-					<DropdownMenu.Item onclick={createBranchedConversation} class="cursor-pointer gap-2">
+					<DropdownMenu.Item onclick={regenerateInPlace} class="cursor-pointer gap-2">
 						<RefreshCwIcon class="size-4" />
 						<span>Regenerate</span>
 					</DropdownMenu.Item>

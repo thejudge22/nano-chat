@@ -204,8 +204,10 @@
 			<Button size="sm" variant="outline" href="/chat">Create a new conversation</Button>
 		</div>
 	{:else}
-		{#each messages.data ?? [] as message (message.id)}
-			<MessageComponent {message} />
+		{#each messages.data ?? [] as message, i (message.id)}
+			{@const nextMessage = messages.data?.[i + 1]}
+			{@const childMessageId = nextMessage?.role === 'assistant' ? nextMessage.id : undefined}
+			<MessageComponent {message} {childMessageId} />
 		{/each}
 		{#if conversation.data?.generating}
 			{#if lastMessage?.webSearchEnabled}

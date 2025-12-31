@@ -110,3 +110,7 @@ export async function getMessagesByConversation(conversationId: string): Promise
     });
     return result;
 }
+
+export async function deleteMessage(messageId: string): Promise<void> {
+    await db.delete(messages).where(eq(messages.id, messageId));
+}

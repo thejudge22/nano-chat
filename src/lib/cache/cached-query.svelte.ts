@@ -186,6 +186,7 @@ export const api = {
 		updateContent: { url: '/api/db/messages', method: 'POST' } as QueryConfig,
 		updateMessage: { url: '/api/db/messages', method: 'POST' } as QueryConfig,
 		updateError: { url: '/api/db/messages', method: 'POST' } as QueryConfig,
+		delete: { url: '/api/db/messages', method: 'POST' } as QueryConfig,
 	},
 	user_settings: {
 		get: { url: '/api/db/user-settings', method: 'GET' } as QueryConfig,
