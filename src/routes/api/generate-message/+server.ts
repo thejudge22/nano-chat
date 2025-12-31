@@ -608,11 +608,11 @@ ${attachedRules.map((r) => `- ${r.name}: ${r.rule}`).join('\n')}`;
 	const messagesToSend =
 		systemContent.length > 0
 			? [
-				...finalMessages,
 				{
 					role: 'system' as const,
 					content: systemContent,
 				},
+				...finalMessages,
 			]
 			: finalMessages;
 
