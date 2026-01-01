@@ -18,7 +18,7 @@ export interface MutationOptions {
 }
 
 /**
- * Execute a mutation (POST request to API)
+ * Execute a mutation (POST/PATCH/DELETE request to API)
  */
 export async function mutate<T = unknown>(
     url: string,
@@ -27,12 +27,25 @@ export async function mutate<T = unknown>(
 ): Promise<T> {
     const { invalidateKeys = [], invalidatePatterns = [], onSuccess, onError } = options;
 
+    // Extract method from body if present, default to POST
+    const { method = 'POST', ...restBody } = body;
+    const httpMethod = typeof method === 'string' ? method.toUpperCase() : 'POST';
+
     try {
-        const response = await fetch(url, {
-            method: 'POST',
+        const fetchOptions: RequestInit = {
+            method: httpMethod,
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body),
-        });
+        };
+
+        // Only include body for methods that support it
+        if (httpMethod !== 'GET' && httpMethod !== 'DELETE') {
+            fetchOptions.body = JSON.stringify(restBody);
+        } else if (Object.keys(restBody).length > 0) {
+            // For DELETE with body data, still include it
+            fetchOptions.body = JSON.stringify(restBody);
+        }
+
+        const response = await fetch(url, fetchOptions);
 
         if (!response.ok) {
             const errorText = await response.text();
