@@ -301,7 +301,10 @@
 							'hover:bg-accent flex items-center justify-center rounded-lg p-2 transition-colors',
 							selectedProvider === null && 'bg-accent text-accent-foreground'
 						)}
-						onclick={() => (selectedProvider = null)}
+						onclick={() => {
+							search = '';
+							selectedProvider = null;
+						}}
 					>
 						<StarIcon class="size-5" />
 					</button>
@@ -313,7 +316,10 @@
 								'hover:bg-accent flex items-center justify-center rounded-lg p-2 transition-colors',
 								selectedProvider === provider.iconUrl && 'bg-accent text-accent-foreground'
 							)}
-							onclick={() => (selectedProvider = provider.iconUrl)}
+							onclick={() => {
+								search = '';
+								selectedProvider = provider.iconUrl;
+							}}
 						>
 							<img
 								src={getIconUrl(provider.iconUrl)}
