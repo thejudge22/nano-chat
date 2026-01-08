@@ -21,7 +21,7 @@
 	"devDependencies": {
 		"@eslint/compat": "^2.0.0",
 		"@eslint/js": "^9.39.2",
-		"@iconify/json": "^2.2.425",
+		"@iconify/json": "^2.2.426",
 		"@playwright/test": "^1.57.0",
 		"@shikijs/langs": "^3.21.0",
 		"@shikijs/markdown-it": "^3.21.0",
@@ -38,7 +38,7 @@
 		"dotenv": "^17.2.3",
 		"eslint": "^9.39.2",
 		"eslint-config-prettier": "^10.1.8",
-		"eslint-plugin-svelte": "^3.13.1",
+		"eslint-plugin-svelte": "^3.14.0",
 		"globals": "^17.0.0",
 		"melt": "^0.44.0",
 		"mode-watcher": "^1.1.0",

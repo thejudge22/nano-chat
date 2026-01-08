@@ -7,9 +7,12 @@
 	import PlusIcon from '~icons/lucide/plus';
 	import TrashIcon from '~icons/lucide/trash-2';
 	import CopyIcon from '~icons/lucide/copy';
+	import ExternalLinkIcon from '~icons/lucide/external-link';
 	import { invalidateAll } from '$app/navigation';
 
 	let { data } = $props();
+
+	const API_DOCS_URL = 'https://github.com/nanogpt-community/nanochat/blob/main/api-docs.md';
 
 	let newKeyName = $state('');
 	let newlyCreatedKey = $state<string | null>(null);
@@ -81,6 +84,15 @@
 		Personal Access Tokens for API authentication. Use these keys with the
 		<code class="bg-muted rounded px-1">Authorization: Bearer &lt;KEY&gt;</code> header.
 	</p>
+	<a
+		href={API_DOCS_URL}
+		target="_blank"
+		rel="noopener noreferrer"
+		class="text-primary hover:text-primary/80 mt-2 inline-flex items-center gap-1 text-sm font-medium underline-offset-4 hover:underline"
+	>
+		View API Documentation
+		<ExternalLinkIcon class="size-4" />
+	</a>
 </div>
 
 <Card.Root class="mt-8">
@@ -94,11 +106,7 @@
 	<Card.Content>
 		<!-- Create new key form -->
 		<div class="mb-6 flex gap-2">
-			<Input
-				bind:value={newKeyName}
-				placeholder="Key name (e.g., CLI Script)"
-				class="flex-1"
-			/>
+			<Input bind:value={newKeyName} placeholder="Key name (e.g., CLI Script)" class="flex-1" />
 			<Button onclick={createKey} disabled={creating || !newKeyName.trim()}>
 				<PlusIcon class="mr-1 size-4" />
 				Generate Key
@@ -117,12 +125,7 @@
 						<CopyIcon class="size-4" />
 					</Button>
 				</div>
-				<Button
-					variant="ghost"
-					size="sm"
-					class="mt-2"
-					onclick={() => (newlyCreatedKey = null)}
-				>
+				<Button variant="ghost" size="sm" class="mt-2" onclick={() => (newlyCreatedKey = null)}>
 					Dismiss
 				</Button>
 			</div>
@@ -157,12 +160,14 @@
 		<Card.Title>Usage Example</Card.Title>
 	</Card.Header>
 	<Card.Content>
-		<pre class="bg-muted overflow-x-auto rounded-lg p-4 text-sm"><code>curl -X POST https://your-domain.com/api/generate-message \
+		<pre class="bg-muted overflow-x-auto rounded-lg p-4 text-sm"><code
+				>curl -X POST https://your-domain.com/api/generate-message \
   -H "Authorization: Bearer nc_your_api_key_here" \
   -H "Content-Type: application/json" \
   -d '{'{'}
     "message": "Hello!",
     "model_id": "gpt-4o"
-  {'}'}'</code></pre>
+  {'}'}'</code
+			></pre>
 	</Card.Content>
 </Card.Root>
