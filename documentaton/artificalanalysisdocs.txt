@@ -1,0 +1,300 @@
+Artificial Analysis API Documentation (Free API)
+Overview & Access
+Artificial Analysis provides a free API to support analysis of AI models and in making informed decisions about which AI models to use.
+We offer a free API focused on model benchmarks and a commercial API with more comprehensive data. Commercial API documentation is available to partners separately.
+To access our free API, create an account for the Artificial Analysis Insights Platform and generate an API key.
+When integrating with our API, we recommend using model and creator IDs as primary identifiers since they remain stable, while slugs and names may change over time.
+Attribution & Sharing of Data
+Attribution is required for all use of our free API. Please provide attribution to https://artificialanalysis.ai/.
+If you wish to include our logo in your materials, you can download our brand kit here: Artificial Analysis Brand Kit.
+Methodology
+For details on how benchmarks are conducted, see our methodology.
+Authentication
+Include your API key in the x-api-key header.
+To obtain an API key, create an account in the Artificial Analysis Insights Platform and generate an API key.
+401 Invalid/missing API key
+429 Rate limit exceeded
+500 Internal server error
+Free Artificial Analysis Data API
+Our free API is focused on sharing primary metrics from our independent benchmarks of models. This includes our independent intelligence evaluations, speed benchmarks and pricing.
+The API is rate-limited to 1,000 requests per day. To avoid publicly sharing keys and rate limits, please do not include in client side code and cache responses.
+LLMs Endpoint
+GET/data/llms/models
+Response Fields
+Field	Type	Description
+id	string	Unique identifier (stable)
+name	string	Full name (may change)
+slug	string	URL-friendly identifier (infrequently changed)
+model_creator	object	Creator information (id, name, slug)
+evaluations	object	Benchmark scores
+pricing	object	Price per million tokens ($USD)
+median_output_tokens_per_second	number	Output generation speed (tokens per second)
+median_time_to_first_token_seconds	number	Time to first token (seconds)
+Example Request
+curl -X GET https://artificialanalysis.ai/api/v2/data/llms/models \
+          -H "x-api-key: your_api_key_here"
+Example Response
+{
+  "status": 200,
+  "prompt_options": {
+    "parallel_queries": 1,
+    "prompt_length": "medium"
+  },
+  "data": [
+    {
+      "id": "2dad8957-4c16-4e74-bf2d-8b21514e0ae9",
+      "name": "o3-mini",
+      "slug": "o3-mini",
+      "model_creator": {
+        "id": "e67e56e3-15cd-43db-b679-da4660a69f41",
+        "name": "OpenAI",
+        "slug": "openai"
+      },
+      "evaluations": {
+        "artificial_analysis_intelligence_index": 62.9,
+        "artificial_analysis_coding_index": 55.8,
+        "artificial_analysis_math_index": 87.2,
+        "mmlu_pro": 0.791,
+        "gpqa": 0.748,
+        "hle": 0.087,
+        "livecodebench": 0.717,
+        "scicode": 0.399,
+        "math_500": 0.973,
+        "aime": 0.77
+      },
+      "pricing": {
+        "price_1m_blended_3_to_1": 1.925,
+        "price_1m_input_tokens": 1.1,
+        "price_1m_output_tokens": 4.4
+      },
+      "median_output_tokens_per_second": 153.831,
+      "median_time_to_first_token_seconds": 14.939,
+      "median_time_to_first_answer_token": 14.939
+    },
+    // Other models...
+  ]
+}
+Text-to-Image Endpoint
+GET/data/media/text-to-image
+This endpoint returns ELO ratings for text-to-image models.
+You can optionally include the include_categories=true parameter to get a breakdown of ELO scores by category.
+Example Request
+curl -X GET "https://artificialanalysis.ai/api/v2/data/media/text-to-image" \
+          -H "x-api-key: your_api_key_here"
+Example Response
+{
+  "status": 200,
+  "include_categories": true,
+  "data": [
+    {
+      "id": "dall-e-3",
+      "name": "DALL·E 3",
+      "slug": "dall-e-3",
+      "model_creator": {
+        "id": "openai",
+        "name": "OpenAI"
+      },
+      "elo": 1250,
+      "rank": 1,
+      "ci95": "-5/+5",
+      "appearances": 5432,
+      "release_date": "2025-04",
+      "categories": [
+        {
+          "style_category": "General & Photorealistic",
+          "subject_matter_category": "People: Portraits",
+          "elo": 1280,
+          "ci95": "-5/+5",
+          "appearances": 1234
+        }
+      ]
+    }
+  ]
+}
+Image Editing Endpoint
+GET/data/media/image-editing
+This endpoint returns ELO ratings for image editing models.
+Example Request
+curl -X GET "https://artificialanalysis.ai/api/v2/data/media/image-editing" \
+          -H "x-api-key: your_api_key_here"
+Example Response
+{
+  "status": 200,
+  "data": [
+    {
+      "id": "2f5ebb1e-6d5f-48b0-95bf-3b590fd45971",
+      "name": "GPT Image 1 (high)",
+      "slug": "openai-gpt_gpt-image-1--high",
+      "model_creator": {
+        "id": "e67e56e3-15cd-43db-b679-da4660a69f41",
+        "name": "OpenAI"
+      },
+      "elo": 1128,
+      "rank": 1,
+      "ci95": "-10/+9",
+      "appearances": 13287,
+      "release_date": "Apr 2025"
+    }
+  ]
+}
+Text-to-Speech Endpoint
+GET/data/media/text-to-speech
+This endpoint returns ELO ratings for text-to-speech models.
+Example Request
+curl -X GET "https://artificialanalysis.ai/api/v2/data/media/text-to-speech" \
+          -H "x-api-key: your_api_key_here"
+Text-to-Video Endpoint
+GET/data/media/text-to-video
+This endpoint returns ELO ratings for text-to-video models.
+You can optionally include the include_categories=true parameter to get a breakdown of ELO scores by category.
+Example Request
+curl -X GET "https://artificialanalysis.ai/api/v2/data/media/text-to-video" \
+          -H "x-api-key: your_api_key_here"
+Example Response
+{
+  "status": 200,
+  "include_categories": true,
+  "data": [
+    {
+      "id": "61270a9b-9d2e-4875-810f-e81508bc5504",
+      "name": "Kling 2.5 Turbo 1080p",
+      "slug": "kling-25-turbo-1080p",
+      "model_creator": {
+        "id": "62cc833b-f55a-4489-bcae-54806d4b04ff",
+        "name": "Kuaishou KlingAI"
+      },
+      "elo": 1180,
+      "rank": 1,
+      "ci95": "-8/+8",
+      "appearances": 3210,
+      "release_date": "2025-09",
+      "categories": [
+        {
+          "style_category": "Photorealistic",
+          "subject_matter_category": "People",
+          "format_category": "Moving camera",
+          "elo": 1200,
+          "ci95": "-12/+12",
+          "appearances": 890
+        }
+      ]
+    }
+  ]
+}
+Image-to-Video Endpoint
+GET/data/media/image-to-video
+This endpoint returns ELO ratings for image-to-video models.
+You can optionally include the include_categories=true parameter to get a breakdown of ELO scores by category.
+Example Request
+curl -X GET "https://artificialanalysis.ai/api/v2/data/media/image-to-video" \
+          -H "x-api-key: your_api_key_here"
+Example Response
+{
+  "status": 200,
+  "include_categories": true,
+  "data": [
+    {
+      "id": "61270a9b-9d2e-4875-810f-e81508bc5504",
+      "name": "Kling 2.5 Turbo 1080p",
+      "slug": "kling-25-turbo-1080p",
+      "model_creator": {
+        "id": "62cc833b-f55a-4489-bcae-54806d4b04ff",
+        "name": "Kuaishou KlingAI"
+      },
+      "elo": 1120,
+      "rank": 1,
+      "ci95": "-10/+10",
+      "appearances": 1890,
+      "release_date": "2025-09",
+      "categories": [
+        {
+          "style_category": "Photorealistic",
+          "subject_matter_category": "Nature",
+          "format_category": "Moving camera",
+          "elo": 1140,
+          "ci95": "-15/+15",
+          "appearances": 520
+        }
+      ]
+    }
+  ]
+}
+CritPt Benchmark Evaluation API
+This API provides the official gateway for evaluating code generation submissions against the CritPt benchmark private evaluation set.
+Authentication & Rate Limiting
+Authentication: An Artificial Analysis API key is required in the x-api-key header
+Rate Limiting: Default limit of 10 requests per 24-hour window (custom limits available upon request)
+Rate Limit Headers: Responses include X-RateLimit-Limit, X-RateLimit-Remaining, and X-RateLimit-Reset headers
+Attribution
+When using this API or the broader CritPt evaluation, please provide appropriate attribution to the CritPt project.
+Batch Evaluation Endpoint
+POST/api/v2/critpt/evaluate
+Submit a batch of code generation submissions for evaluation against CritPt benchmark problems.
+Note: Requests may take substantial time to complete as they are processed by the evaluation system.
+Request Body
+Field	Type	Required	Description
+submissions	array	Yes	Array of submission objects (see below) - must include *all* problems in the public set to be processed
+batch_metadata	object	Yes	Metadata object for the batch (any additional properties allowed)
+Submission Object Fields
+Field	Type	Required	Description
+problem_id	string	Yes	Unique identifier for the CritPt problem
+generated_code	string	Yes	The code generated by the model
+model	string	Yes	Name/identifier of the model used
+generation_config	object	Yes	Configuration used for code generation (any properties allowed)
+messages	array	No	Optional array of message objects
+Response Fields (Success)
+Field	Type	Description
+accuracy	number	Average accuracy from 0-1 across submissions
+timeout_rate	number	Share of submission grading processes that timed out in the upstream grading server
+server_timeout_count	number	Number of submission grading processes that timed out in the upstream grading server
+judge_error_count	number	Number of submission grading processes that failed due to a judge error in the grading server; this could be due to model responses or intermittent and may be retried
+Rate Limit Headers
+All successful responses include the following headers:
+X-RateLimit-Limit: Maximum requests allowed in the time window
+X-RateLimit-Remaining: Number of requests remaining in current window
+X-RateLimit-Reset: Human-readable date string when the rate limit window resets
+Error Responses
+400 Invalid request body
+401 Invalid/missing API key
+429 Rate limit exceeded
+502 Invalid response from evaluation system
+504 Evaluation timeout
+429 Rate Limit Exceeded Response
+{
+  "error": "Rate limit exceeded",
+  "limit": 10,
+  "remaining": 0,
+  "reset": "Wed Jan 01 2025 00:00:00 GMT+0000 (Coordinated Universal Time)",
+  "retryAfter": 3600
+}
+The response also includes Retry-After header with seconds to wait.
+Example Request (truncated)
+curl -X POST https://artificialanalysis.ai/api/v2/critpt/evaluate \
+  -H "Content-Type: application/json" \
+  -H "x-api-key: your_api_key_here" \
+  -d '{
+    "submissions": [
+      {
+        "problem_id": "Challenge_1_main",
+        "generated_code": "```python\ndef solution():\n    return 42\n```",
+        "model": "gpt-5",
+        "generation_config": {
+          "use_golden_for_prev_steps": false,
+          "parsing": false,
+          "multiturn_with_answer": false,
+          "use_python": false,
+          "use_web_search": false
+        }
+      },
+      # Submission for *all* problems in the public set are required in each grading request
+      ...
+    ],
+    "batch_metadata": {}
+  }'
+Example Response
+{
+  "accuracy": 0.0,
+  "timeout_rate": 0.0,
+  "server_timeout_count": 0,
+  "judge_error_count": 0
+}
