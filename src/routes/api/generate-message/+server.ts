@@ -323,11 +323,13 @@ async function generateAIResponse({
 	}
 
 	// Scrape URLs from the user message if any are present
-	// Skip if web features are disabled for this user
+	// Skip if web features are disabled for this user OR if web scraping is disabled in settings
 	let scrapedContent: string = '';
 	let scrapeCost = 0;
 
-	if (lastUserMessage && !webFeaturesDisabled) {
+	const webScrapingEnabled = userSettingsData?.webScrapingEnabled ?? false;
+
+	if (lastUserMessage && !webFeaturesDisabled && webScrapingEnabled) {
 		log('Background: Checking for URLs to process', startTime);
 
 		try {
@@ -348,6 +350,8 @@ async function generateAIResponse({
 		}
 	} else if (webFeaturesDisabled && lastUserMessage) {
 		log('Background: Skipping URL scraping - web features disabled for this user', startTime);
+	} else if (!webScrapingEnabled && lastUserMessage) {
+		log('Background: Skipping URL scraping - web scraping disabled in user settings', startTime);
 	}
 
 	// Create assistant message

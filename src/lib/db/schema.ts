@@ -93,6 +93,9 @@ export const userSettings = sqliteTable(
 		youtubeTranscriptsEnabled: integer('youtube_transcripts_enabled', { mode: 'boolean' })
 			.notNull()
 			.default(false),
+		webScrapingEnabled: integer('web_scraping_enabled', { mode: 'boolean' })
+			.notNull()
+			.default(false),
 		followUpQuestionsEnabled: integer('follow_up_questions_enabled', { mode: 'boolean' })
 			.notNull()
 			.default(true),

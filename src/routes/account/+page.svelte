@@ -31,6 +31,7 @@
 	let contextMemoryEnabled = $derived(settings.data?.contextMemoryEnabled ?? false);
 	let persistentMemoryEnabled = $derived(settings.data?.persistentMemoryEnabled ?? false);
 	let youtubeTranscriptsEnabled = $derived(settings.data?.youtubeTranscriptsEnabled ?? false);
+	let webScrapingEnabled = $derived(settings.data?.webScrapingEnabled ?? false);
 	let followUpQuestionsEnabled = $derived(settings.data?.followUpQuestionsEnabled ?? true);
 	let titleModelId = $state(settings.data?.titleModelId ?? '');
 	let followUpModelId = $state(settings.data?.followUpModelId ?? '');
@@ -175,6 +176,27 @@
 		);
 
 		if (res.isErr()) youtubeTranscriptsEnabled = !v;
+	}
+
+	async function toggleWebScraping(v: boolean) {
+		webScrapingEnabled = v;
+		if (!session.current?.user.id) return;
+
+		const res = await ResultAsync.fromPromise(
+			mutate(
+				api.user_settings.set.url,
+				{
+					action: 'update',
+					webScrapingEnabled: v,
+				},
+				{
+					invalidatePatterns: [api.user_settings.get.url],
+				}
+			),
+			(e) => e
+		);
+
+		if (res.isErr()) webScrapingEnabled = !v;
 	}
 
 	async function toggleFollowUpQuestions(v: boolean) {
@@ -476,6 +498,15 @@
 					>
 				</div>
 				<Switch bind:value={() => youtubeTranscriptsEnabled, toggleYoutubeTranscripts} />
+			</div>
+			<div class="flex place-items-center justify-between">
+				<div class="flex flex-col gap-1">
+					<span class="font-medium">Web Scraping</span>
+					<span class="text-muted-foreground text-sm"
+						>Automatically scrape web page content when URLs are detected.</span
+					>
+				</div>
+				<Switch bind:value={() => webScrapingEnabled, toggleWebScraping} />
 			</div>
 			<div class="flex place-items-center justify-between">
 				<div class="flex flex-col gap-1">
