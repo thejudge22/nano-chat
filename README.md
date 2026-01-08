@@ -33,6 +33,8 @@
 - Model Performance Tracking and Analytics.
 - Projects
 - Benchmark Data from artificialanalysis.ai API
+- Provider Selection for Models (NanoGPT)
+- Nano-GPT Video Generation
 
 ## Setup (Docker)
 
@@ -146,6 +148,20 @@ View performance benchmarks from [Artificial Analysis](https://artificialanalysi
 - **For Image Models**: ELO rating and Rank
 - Benchmarks appear in the model info panel (click the info icon on any model)
 - Requires `ARTIFICIAL_ANALYSIS_API_KEY` environment variable
+
+### Provider Selection
+
+For models supported by multiple providers on NanoGPT, you can:
+- Select a specific provider (e.g., 'openai', 'anthropic', 'google') for a model.
+- Configure preferred and excluded providers in Account Settings.
+- Enable automatic fallback to other providers if the preferred one fails.
+
+### Video Generation
+
+Generate videos using NanoGPT's video models:
+- Text-to-video generation
+- View generation status and history
+- Download generated videos
 
 
 ---

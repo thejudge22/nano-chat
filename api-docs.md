@@ -46,7 +46,7 @@ Generates a response from an AI model. This is the core endpoint for chat functi
   ],
   "reasoning_effort": "enum: 'low' | 'medium' | 'high' (optional)",
   "temporary": "boolean (optional)",
-  "provider_id": "string (optional)"
+  "provider_id": "string (optional) - Select specific provider for this generation"
 }
 ```
 
@@ -728,3 +728,97 @@ Get cached benchmark data from Artificial Analysis for LLM and image models.
 - Returns `{ "available": false }` if `ARTIFICIAL_ANALYSIS_API_KEY` is not configured
 - Data is cached server-side for 1 hour to minimize API calls
 - Used by the model info panel to display performance benchmarks
+
+---
+
+### Provider Preferences
+
+#### GET `/api/provider-preferences`
+Get user's provider preferences.
+
+**Authentication**: Session
+
+**Response**:
+```json
+{
+  "preferredProviders": ["openai", "anthropic"],
+  "excludedProviders": [],
+  "enableFallback": true,
+  "modelOverrides": {}
+}
+```
+
+#### PATCH `/api/provider-preferences`
+Update user's provider preferences.
+
+**Authentication**: Session
+
+**Request Body**:
+```json
+{
+  "preferredProviders": ["string"],
+  "excludedProviders": ["string"],
+  "enableFallback": boolean,
+  "modelOverrides": {
+    "modelId": {
+      "preferredProviders": ["string"],
+      "enableFallback": boolean
+    }
+  }
+}
+```
+
+#### DELETE `/api/provider-preferences`
+Reset provider preferences.
+
+**Authentication**: Session
+
+---
+
+### Follow-up Questions
+
+#### POST `/api/generate-follow-up-questions`
+Generate follow-up questions for a message.
+
+**Authentication**: Session
+
+**Request Body**:
+```json
+{
+  "conversationId": "string",
+  "messageId": "string"
+}
+```
+
+**Response**:
+```json
+{
+  "ok": true,
+  "suggestions": ["string"]
+}
+```
+
+---
+
+### KaraKeep
+
+#### POST `/api/karakeep/save-chat`
+Save a conversation to KaraKeep.
+
+**Authentication**: Session
+
+**Request Body**:
+```json
+{
+  "conversationId": "string"
+}
+```
+
+**Response**:
+```json
+{
+  "success": true,
+  "bookmarkId": "string",
+  "message": "string"
+}
+```
