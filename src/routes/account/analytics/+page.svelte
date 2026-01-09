@@ -20,42 +20,42 @@
 	let isRefreshing = $state(false);
 
 	const sortedStats = $derived.by(() => {
-		const stats = [...data.stats];
+		const stats = [...data.stats].filter((s) => s.totalMessages > 0);
 		stats.sort((a, b) => {
 			let aVal: number;
 			let bVal: number;
 
-				switch (sortColumn) {
-					case 'model':
-						return sortDirection === 'asc'
-							? a.modelId.localeCompare(b.modelId)
-							: b.modelId.localeCompare(a.modelId);
-					case 'rating':
-						aVal = a.avgRating ?? 0;
-						bVal = b.avgRating ?? 0;
-						break;
-					case 'uses':
-						aVal = a.totalMessages;
-						bVal = b.totalMessages;
-						break;
-					case 'cost':
-						aVal = a.totalMessages > 0 ? a.totalCost / a.totalMessages : 0;
-						bVal = b.totalMessages > 0 ? b.totalCost / b.totalMessages : 0;
-						break;
-					case 'thumbsRatio':
-						const aTotal = a.thumbsUpCount + a.thumbsDownCount;
-						const bTotal = b.thumbsUpCount + b.thumbsDownCount;
-						aVal = aTotal > 0 ? a.thumbsUpCount / aTotal : 0;
-						bVal = bTotal > 0 ? b.thumbsUpCount / bTotal : 0;
-						break;
-					case 'speed':
-						aVal = getTokensPerSecond(a);
-						bVal = getTokensPerSecond(b);
-						break;
-					default:
-						aVal = 0;
-						bVal = 0;
-				}
+			switch (sortColumn) {
+				case 'model':
+					return sortDirection === 'asc'
+						? a.modelId.localeCompare(b.modelId)
+						: b.modelId.localeCompare(a.modelId);
+				case 'rating':
+					aVal = a.avgRating ?? 0;
+					bVal = b.avgRating ?? 0;
+					break;
+				case 'uses':
+					aVal = a.totalMessages;
+					bVal = b.totalMessages;
+					break;
+				case 'cost':
+					aVal = a.totalMessages > 0 && !isNaN(a.totalCost) ? a.totalCost / a.totalMessages : 0;
+					bVal = b.totalMessages > 0 && !isNaN(b.totalCost) ? b.totalCost / b.totalMessages : 0;
+					break;
+				case 'thumbsRatio':
+					const aTotal = a.thumbsUpCount + a.thumbsDownCount;
+					const bTotal = b.thumbsUpCount + b.thumbsDownCount;
+					aVal = aTotal > 0 ? a.thumbsUpCount / aTotal : 0;
+					bVal = bTotal > 0 ? b.thumbsUpCount / bTotal : 0;
+					break;
+				case 'speed':
+					aVal = getTokensPerSecond(a);
+					bVal = getTokensPerSecond(b);
+					break;
+				default:
+					aVal = 0;
+					bVal = 0;
+			}
 
 			return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
 		});
@@ -84,7 +84,13 @@
 	}
 
 	function formatCost(cost: number): string {
+		if (isNaN(cost)) return 'N/A';
 		return `$${cost.toFixed(6)}`;
+	}
+
+	function formatCostSafe(cost: number | null | undefined): string {
+		if (cost === null || cost === undefined || isNaN(cost)) return 'N/A';
+		return `$${cost.toFixed(2)}`;
 	}
 
 	function getThumbsRatio(upCount: number, downCount: number): string {
@@ -164,7 +170,7 @@
 				<div class="flex items-center justify-between">
 					<div>
 						<p class="text-muted-foreground text-sm">Total Cost</p>
-						<p class="text-2xl font-bold">${data.insights.totalCost.toFixed(2)}</p>
+						<p class="text-2xl font-bold">{formatCostSafe(data.insights.totalCost)}</p>
 					</div>
 					<DollarSignIcon class="text-muted-foreground size-8" />
 				</div>
@@ -209,7 +215,7 @@
 				</div>
 			{/if}
 
-			{#if data.insights.mostCostEffective}
+			{#if data.insights.mostCostEffective && !isNaN(data.insights.mostCostEffective.totalCost)}
 				<div class="bg-card rounded-lg border p-6">
 					<h3 class="mb-2 text-lg font-semibold">Most Cost-Effective</h3>
 					<p class="text-muted-foreground text-sm">
@@ -348,7 +354,11 @@
 									</td>
 									<td class="py-3 pr-4 text-center">{stat.totalMessages}</td>
 									<td class="py-3 pr-4 text-center">
-										{formatCost(stat.totalCost / stat.totalMessages)}
+										{#if !isNaN(stat.totalCost) && stat.totalMessages > 0}
+											{formatCost(stat.totalCost / stat.totalMessages)}
+										{:else}
+											<span class="text-muted-foreground text-sm">N/A</span>
+										{/if}
 									</td>
 									<td class="py-3 pr-4">
 										<div class="flex items-center justify-center gap-2">

@@ -29,6 +29,7 @@
 	import {
 		supportsImages,
 		supportsReasoning,
+		supportsVerbosity,
 		supportsDocuments,
 		supportsVideo,
 	} from '$lib/utils/model-capabilities';
@@ -354,7 +355,10 @@
 				web_search_provider: settings.webSearchProvider,
 				assistant_id: selectedAssistantId.current || undefined,
 				project_id: page.url.searchParams.get('projectId') || undefined,
-				reasoning_effort: currentModelSupportsReasoning ? settings.reasoningEffort : undefined,
+				reasoning_effort:
+					currentModelSupportsReasoning && currentModelSupportsVerbosity
+						? settings.reasoningEffort
+						: undefined,
 				temporary: settings.temporaryMode || undefined,
 			});
 
@@ -559,6 +563,14 @@
 		const currentModel = nanoGPTModels.find((m) => m.id === settings.modelId);
 		if (!currentModel) return false;
 		return supportsVideo(currentModel);
+	});
+
+	const currentModelSupportsVerbosity = $derived.by(() => {
+		if (!settings.modelId) return false;
+		const nanoGPTModels = models.from(Provider.NanoGPT);
+		const currentModel = nanoGPTModels.find((m) => m.id === settings.modelId);
+		if (!currentModel) return false;
+		return supportsVerbosity(currentModel);
 	});
 
 	// Helper to check if file is an image (by MIME type or extension)
@@ -1459,7 +1471,7 @@
 												Attach files (images, PDF, Markdown, Text, EPUB)
 											</Tooltip>
 										{/if}
-										{#if currentModelSupportsReasoning}
+										{#if currentModelSupportsReasoning && currentModelSupportsVerbosity}
 											<Tooltip>
 												{#snippet trigger(tooltip)}
 													<button
@@ -1599,15 +1611,18 @@
 											<DropdownMenu.Trigger
 												class={cn(
 													'bg-secondary/50 hover:bg-secondary text-muted-foreground relative flex size-9 items-center justify-center rounded-lg transition-colors',
-													(settings.webSearchMode !== 'off' || 
-													 (currentModelSupportsReasoning && settings.reasoningEffort !== 'low') || 
-													 settings.temporaryMode) &&
+													(settings.webSearchMode !== 'off' ||
+														(currentModelSupportsReasoning &&
+															currentModelSupportsVerbosity &&
+															settings.reasoningEffort !== 'low') ||
+														settings.temporaryMode) &&
 														'bg-primary/20 text-primary'
 												)}
 											>
 												<EllipsisVerticalIcon class="size-4" />
-												{#if settings.webSearchMode !== 'off' || (currentModelSupportsReasoning && settings.reasoningEffort !== 'low') || settings.temporaryMode}
-													<span class="absolute -top-0.5 -right-0.5 size-2 rounded-full bg-primary"></span>
+												{#if settings.webSearchMode !== 'off' || (currentModelSupportsReasoning && currentModelSupportsVerbosity && settings.reasoningEffort !== 'low') || settings.temporaryMode}
+													<span class="bg-primary absolute -top-0.5 -right-0.5 size-2 rounded-full"
+													></span>
 												{/if}
 											</DropdownMenu.Trigger>
 											<DropdownMenu.Content align="end">
@@ -1640,10 +1655,12 @@
 															else settings.webSearchMode = 'off';
 														}}
 													>
-														<SearchIcon class={cn('mr-2 size-4', {
-														'text-primary': settings.webSearchMode === 'standard',
-														'text-amber-500': settings.webSearchMode === 'deep',
-													})} />
+														<SearchIcon
+															class={cn('mr-2 size-4', {
+																'text-primary': settings.webSearchMode === 'standard',
+																'text-amber-500': settings.webSearchMode === 'deep',
+															})}
+														/>
 														Web Search: {settings.webSearchMode === 'off'
 															? 'Off'
 															: settings.webSearchMode === 'standard'
@@ -1651,7 +1668,7 @@
 																: 'Deep'}
 													</DropdownMenu.Item>
 												{/if}
-												{#if currentModelSupportsReasoning}
+												{#if currentModelSupportsReasoning && currentModelSupportsVerbosity}
 													<DropdownMenu.Item
 														onclick={() => {
 															if (settings.reasoningEffort === 'low')
@@ -1677,15 +1694,20 @@
 												<DropdownMenu.Item
 													onclick={() => (settings.temporaryMode = !settings.temporaryMode)}
 												>
-													<GhostIcon class={cn('mr-2 size-4', settings.temporaryMode && 'text-orange-500')} />
+													<GhostIcon
+														class={cn('mr-2 size-4', settings.temporaryMode && 'text-orange-500')}
+													/>
 													Temporary: {settings.temporaryMode ? 'On' : 'Off'}
 												</DropdownMenu.Item>
 												{#if currentModelSupportsVideo}
 													<DropdownMenu.Separator />
-													<DropdownMenu.Item
-														onclick={() => (videoModalOpen = true)}
-													>
-														<VideoIcon class={cn('mr-2 size-4', Object.keys(videoParams).length > 0 && 'text-blue-500')} />
+													<DropdownMenu.Item onclick={() => (videoModalOpen = true)}>
+														<VideoIcon
+															class={cn(
+																'mr-2 size-4',
+																Object.keys(videoParams).length > 0 && 'text-blue-500'
+															)}
+														/>
 														Video Settings
 														{#if Object.keys(videoParams).length > 0}
 															<span class="ml-auto text-xs text-blue-500">•</span>

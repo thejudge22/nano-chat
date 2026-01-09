@@ -31,11 +31,7 @@ import * as array from '$lib/utils/array';
 import { parseMessageForRules } from '$lib/utils/rules.js';
 import { getNanoGPTModels } from '$lib/backend/models/nano-gpt';
 import { getUserMemory, upsertUserMemory } from '$lib/db/queries/user-memories';
-import {
-	extractUrlsByType,
-	scrapeUrls,
-	formatScrapedContent,
-} from '$lib/backend/url-scraper';
+import { extractUrlsByType, scrapeUrls, formatScrapedContent } from '$lib/backend/url-scraper';
 import { supportsVideo } from '$lib/utils/model-capabilities';
 import { decryptApiKey, isEncrypted } from '$lib/encryption';
 import {
@@ -145,7 +141,9 @@ async function getUserIdFromApiKey(authHeader: string | null): Promise<Result<st
 	}
 
 	if (!keyValue.startsWith('nc_')) {
-		return err('Invalid API key format. Keys should start with "nc_". Generate one at /account/developer');
+		return err(
+			'Invalid API key format. Keys should start with "nc_". Generate one at /account/developer'
+		);
 	}
 
 	try {
@@ -155,9 +153,7 @@ async function getUserIdFromApiKey(authHeader: string | null): Promise<Result<st
 		// Find matching key by decrypting each one
 		const apiKeyRecord = allApiKeys.find((record) => {
 			try {
-				const decryptedKey = isEncrypted(record.key)
-					? decryptApiKey(record.key)
-					: record.key;
+				const decryptedKey = isEncrypted(record.key) ? decryptApiKey(record.key) : record.key;
 				return decryptedKey === keyValue;
 			} catch {
 				// If decryption fails, skip this record
@@ -170,10 +166,7 @@ async function getUserIdFromApiKey(authHeader: string | null): Promise<Result<st
 		}
 
 		// Update lastUsedAt timestamp
-		await db
-			.update(apiKeys)
-			.set({ lastUsedAt: new Date() })
-			.where(eq(apiKeys.id, apiKeyRecord.id));
+		await db.update(apiKeys).set({ lastUsedAt: new Date() }).where(eq(apiKeys.id, apiKeyRecord.id));
 
 		return ok(apiKeyRecord.userId);
 	} catch (e) {
@@ -360,7 +353,7 @@ async function generateAIResponse({
 				const scrapeResult = await scrapeUrls(regularUrls, apiKey);
 				if (scrapeResult) {
 					scrapedContent += formatScrapedContent(scrapeResult.results);
-					scrapeCost = (scrapeResult.summary.successful * 0.001);
+					scrapeCost = scrapeResult.summary.successful * 0.001;
 				}
 			}
 		} catch (e) {
@@ -383,7 +376,9 @@ async function generateAIResponse({
 		provider: Provider.NanoGPT,
 		content: '',
 		role: 'assistant',
-		webSearchEnabled: webFeaturesDisabled ? false : (conversationMessages.filter((m) => m.role === 'user').pop()?.webSearchEnabled ?? false),
+		webSearchEnabled: webFeaturesDisabled
+			? false
+			: (conversationMessages.filter((m) => m.role === 'user').pop()?.webSearchEnabled ?? false),
 		createdAt: now,
 	});
 
@@ -657,7 +652,6 @@ async function generateAIResponse({
 		systemContent += scrapedContent;
 	}
 
-
 	if (attachedRules.length > 0) {
 		systemContent += `The user has mentioned one or more rules to follow with the @<rule_name> syntax. Please follow these rules as they apply.
 Rules to follow:
@@ -717,12 +711,12 @@ ${attachedRules.map((r) => `- ${r.name}: ${r.rule}`).join('\n')}`;
 	const messagesToSend =
 		systemContent.length > 0
 			? [
-				{
-					role: 'system' as const,
-					content: systemContent,
-				},
-				...finalMessages,
-			]
+					{
+						role: 'system' as const,
+						content: systemContent,
+					},
+					...finalMessages,
+				]
 			: finalMessages;
 
 	if (abortSignal?.aborted) {
@@ -761,18 +755,23 @@ ${attachedRules.map((r) => `- ${r.name}: ${r.rule}`).join('\n')}`;
 				// Add MCP tools when enabled
 				tools: mcpAvailable ? mcpToolDefinitions : undefined,
 				// @ts-ignore - Custom NanoGPT parameters
-				linkup: (!webFeaturesDisabled && (lastUserMessage?.webSearchEnabled ?? false)) ? {
-					enabled: true,
-					provider: webSearchProvider || 'linkup',
-					depth: webSearchDepth === 'deep' ? 'deep' : 'standard',
-				} : undefined,
+				linkup:
+					!webFeaturesDisabled && (lastUserMessage?.webSearchEnabled ?? false)
+						? {
+								enabled: true,
+								provider: webSearchProvider || 'linkup',
+								depth: webSearchDepth === 'deep' ? 'deep' : 'standard',
+							}
+						: undefined,
 				// @ts-ignore - Custom NanoGPT parameters
 				youtube_transcripts: userSettingsData?.youtubeTranscriptsEnabled ?? false,
 				// @ts-ignore - Custom NanoGPT parameters
-				prompt_caching: (model.modelId.startsWith('claude-')) ? {
-					enabled: true,
-					ttl: '5m',
-				} : undefined,
+				prompt_caching: model.modelId.startsWith('claude-')
+					? {
+							enabled: true,
+							ttl: '5m',
+						}
+					: undefined,
 			} as any, // Cast to any to allow custom parameters
 			{
 				signal: abortSignal,
@@ -825,12 +824,14 @@ ${attachedRules.map((r) => `- ${r.name}: ${r.rule}`).join('\n')}`;
 			annotations.push(...(chunk.choices[0]?.delta?.annotations ?? []));
 
 			// Collect tool calls (they come incrementally in streaming)
-			const deltaToolCalls = chunk.choices[0]?.delta?.tool_calls as Array<{
-				index: number;
-				id?: string;
-				type?: 'function';
-				function?: { name?: string; arguments?: string };
-			}> | undefined;
+			const deltaToolCalls = chunk.choices[0]?.delta?.tool_calls as
+				| Array<{
+						index: number;
+						id?: string;
+						type?: 'function';
+						function?: { name?: string; arguments?: string };
+				  }>
+				| undefined;
 
 			if (deltaToolCalls) {
 				for (const dtc of deltaToolCalls) {
@@ -840,7 +841,7 @@ ${attachedRules.map((r) => `- ${r.name}: ${r.rule}`).join('\n')}`;
 						toolCalls[idx] = {
 							id: dtc.id || '',
 							type: 'function',
-							function: { name: '', arguments: '' }
+							function: { name: '', arguments: '' },
 						};
 					}
 					// Accumulate the data
@@ -915,7 +916,10 @@ ${attachedRules.map((r) => `- ${r.name}: ${r.rule}`).join('\n')}`;
 						const imgUrl = args.image_url as string | undefined;
 						// If no URL provided, or it's not a valid URL/data-uri, try to find one in context
 						if (!imgUrl || (!imgUrl.startsWith('http') && !imgUrl.startsWith('data:'))) {
-							log('Background: Vision tool called without valid URL, searching context for images', startTime);
+							log(
+								'Background: Vision tool called without valid URL, searching context for images',
+								startTime
+							);
 
 							// Search backwards for the most recent image
 							let foundImage: string | null = null;
@@ -925,7 +929,13 @@ ${attachedRules.map((r) => `- ${r.name}: ${r.rule}`).join('\n')}`;
 								if (!msg) continue;
 								if (typeof msg.content !== 'string' && Array.isArray(msg.content)) {
 									for (const part of msg.content) {
-										if (part && typeof part === 'object' && 'type' in part && part.type === 'image_url' && 'image_url' in part) {
+										if (
+											part &&
+											typeof part === 'object' &&
+											'type' in part &&
+											part.type === 'image_url' &&
+											'image_url' in part
+										) {
 											// @ts-ignore - TS might not infer the type perfectly here
 											foundImage = part.image_url.url;
 											break;
@@ -973,7 +983,7 @@ ${attachedRules.map((r) => `- ${r.name}: ${r.rule}`).join('\n')}`;
 				{
 					role: 'assistant' as const,
 					content: content || null,
-					tool_calls: toolCalls.map(tc => ({
+					tool_calls: toolCalls.map((tc) => ({
 						id: tc.id,
 						type: 'function' as const,
 						function: tc.function,
@@ -1030,7 +1040,6 @@ ${attachedRules.map((r) => `- ${r.name}: ${r.rule}`).join('\n')}`;
 			}
 		}
 
-
 		if (!generationId) {
 			log('Background: No generation id found', startTime);
 			return;
@@ -1048,28 +1057,72 @@ ${attachedRules.map((r) => `- ${r.name}: ${r.rule}`).join('\n')}`;
 		if (usage) {
 			tokenCount = usage.completion_tokens;
 
-			// Fetch model pricing to calculate cost
-			// Use the original model ID (without online/tavily suffix) for pricing lookup
-			const modelsResult = await getNanoGPTModels();
-			if (modelsResult.isOk()) {
-				const modelInfo = modelsResult.value.find((m) => m.id === model.modelId);
-				if (modelInfo?.pricing) {
-					const promptPricePerMillion = parseFloat(modelInfo.pricing.prompt) || 0;
-					const completionPricePerMillion = parseFloat(modelInfo.pricing.completion) || 0;
-					const promptTokens = usage.prompt_tokens ?? 0;
-					const completionTokens = usage.completion_tokens ?? 0;
+			const promptTokens = usage.prompt_tokens ?? 0;
+			const completionTokens = usage.completion_tokens ?? 0;
+			let promptPricePerMillion = 0;
+			let completionPricePerMillion = 0;
 
-					// Calculate cost: (tokens / 1M) * price_per_million
-					const tokenCost =
-						(promptTokens * promptPricePerMillion + completionTokens * completionPricePerMillion) /
-						1_000_000;
-					costUsd = tokenCost + scrapeCost;
-
-					log(
-						`Background: Calculated cost: $${costUsd.toFixed(6)} (prompt: ${promptTokens}, completion: ${completionTokens}, scrape: $${scrapeCost})`,
-						startTime
+			// If a specific provider is selected, use provider-specific pricing
+			if (providerId) {
+				try {
+					const providersResponse = await fetch(
+						`https://nano-gpt.com/api/models/${encodeURIComponent(model.modelId)}/providers`,
+						{
+							headers: {
+								Authorization: `Bearer ${apiKey}`,
+								'Content-Type': 'application/json',
+							},
+						}
 					);
+
+					if (providersResponse.ok) {
+						const providersData = await providersResponse.json();
+						if (providersData.providers) {
+							const selectedProvider = providersData.providers.find(
+								(p: any) => p.provider === providerId && p.available
+							);
+							if (selectedProvider?.pricing) {
+								promptPricePerMillion = (selectedProvider.pricing.inputPer1kTokens || 0) * 1000;
+								completionPricePerMillion =
+									(selectedProvider.pricing.outputPer1kTokens || 0) * 1000;
+								log(
+									`Background: Using provider-specific pricing for ${providerId}: prompt=$${promptPricePerMillion}/M, completion=$${completionPricePerMillion}/M`,
+									startTime
+								);
+							}
+						}
+					}
+				} catch (e) {
+					log(`Background: Failed to fetch provider-specific pricing: ${e}`, startTime);
 				}
+			}
+
+			// Fall back to default model pricing if no provider pricing available
+			if (promptPricePerMillion === 0 && completionPricePerMillion === 0) {
+				const modelsResult = await getNanoGPTModels();
+				if (modelsResult.isOk()) {
+					const modelInfo = modelsResult.value.find((m) => m.id === model.modelId);
+					if (modelInfo?.pricing) {
+						promptPricePerMillion = parseFloat(modelInfo.pricing.prompt) || 0;
+						completionPricePerMillion = parseFloat(modelInfo.pricing.completion) || 0;
+						log(
+							`Background: Using default model pricing: prompt=$${promptPricePerMillion}/M, completion=$${completionPricePerMillion}/M`,
+							startTime
+						);
+					}
+				}
+			}
+
+			if (promptPricePerMillion > 0 || completionPricePerMillion > 0) {
+				const tokenCost =
+					(promptTokens * promptPricePerMillion + completionTokens * completionPricePerMillion) /
+					1_000_000;
+				costUsd = tokenCost + scrapeCost;
+
+				log(
+					`Background: Calculated cost: $${costUsd.toFixed(6)} (prompt: ${promptTokens}, completion: ${completionTokens}, scrape: $${scrapeCost}, provider: ${providerId || 'default'})`,
+					startTime
+				);
 			}
 		} else {
 			log('Background: No usage data available from stream', startTime);
@@ -1085,9 +1138,8 @@ ${attachedRules.map((r) => `- ${r.name}: ${r.rule}`).join('\n')}`;
 		// responseTimeMs = time from first token to completion (streaming time only)
 		// This excludes TTFT (time-to-first-token) for more accurate tok/sec
 		const streamEndTime = Date.now();
-		const responseTimeMs = firstTokenTime !== null
-			? streamEndTime - firstTokenTime
-			: streamEndTime - generationStart; // fallback to total time if no tokens received
+		const responseTimeMs =
+			firstTokenTime !== null ? streamEndTime - firstTokenTime : streamEndTime - generationStart; // fallback to total time if no tokens received
 		const ttftMs = firstTokenTime !== null ? firstTokenTime - generationStart : null;
 		log(
 			`Background stream processing completed. Processed ${chunkCount} chunks, final content length: ${content.length}, TTFT=${ttftMs}ms, streamingTime=${responseTimeMs}ms`,
@@ -1441,7 +1493,6 @@ export const POST: RequestHandler = async ({ request }) => {
 		log('Cookie session authentication successful', startTime);
 	}
 
-
 	// Fetch model, API key, rules, user settings, and user in parallel
 	const [modelRecord, keyRecord, rulesRecords, userSettingsRecord, userRecord] = await Promise.all([
 		db.query.userEnabledModels.findFirst({
@@ -1512,9 +1563,7 @@ export const POST: RequestHandler = async ({ request }) => {
 	let usingServerKey = false;
 	if (keyRecord?.key) {
 		// Decrypt the key if it's encrypted
-		actualKey = isEncrypted(keyRecord.key)
-			? decryptApiKey(keyRecord.key)
-			: keyRecord.key;
+		actualKey = isEncrypted(keyRecord.key) ? decryptApiKey(keyRecord.key) : keyRecord.key;
 		log('Using user API key', startTime);
 	} else if (process.env.NANOGPT_API_KEY) {
 		actualKey = process.env.NANOGPT_API_KEY;
@@ -1821,9 +1870,8 @@ export const POST: RequestHandler = async ({ request }) => {
 
 				if (conversation?.title === 'New Chat' && args.message) {
 					// Create a descriptive title from the image prompt
-					const imageTitle = args.message.length > 50
-						? args.message.substring(0, 47) + '...'
-						: args.message;
+					const imageTitle =
+						args.message.length > 50 ? args.message.substring(0, 47) + '...' : args.message;
 					const capitalizedTitle = imageTitle.charAt(0).toUpperCase() + imageTitle.slice(1);
 
 					await db
