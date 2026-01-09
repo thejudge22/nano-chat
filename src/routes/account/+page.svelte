@@ -532,10 +532,11 @@
 			</div>
 			<div class="flex place-items-center justify-between">
 				<div class="flex flex-col gap-1">
-					<span class="font-medium">MCP Tools</span>
-					<span class="text-muted-foreground text-sm"
-						>Enable Model Context Protocol tools for enhanced capabilities.</span
-					>
+					<span class="font-medium">Nano-GPT MCP</span>
+					<span class="text-muted-foreground text-sm">
+						Supports Vision, YouTube Transcripts, Web Scraping, Nano-GPT Balance, Image Generation,
+						and Model Lists.
+					</span>
 					{#if data.restrictions?.mcpDisabled}
 						<span class="text-xs text-amber-600 dark:text-amber-400"
 							>Not available when using server API key with subscription-only mode.</span
