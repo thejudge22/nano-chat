@@ -1,1 +1,0 @@
-ALTER TABLE user_settings ADD COLUMN mcp_enabled INTEGER DEFAULT 0 NOT NULL;
