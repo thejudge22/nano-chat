@@ -28,7 +28,7 @@
 		"@shikijs/markdown-it": "^3.21.0",
 		"@shikijs/themes": "^3.21.0",
 		"@sveltejs/adapter-auto": "^7.0.0",
-		"@sveltejs/kit": "^2.49.3",
+		"@sveltejs/kit": "^2.49.4",
 		"@sveltejs/vite-plugin-svelte": "^6.2.3",
 		"@tailwindcss/vite": "^4.1.18",
 		"@testing-library/jest-dom": "^6.9.1",
@@ -69,6 +69,10 @@
 			"@tailwindcss/oxide",
 			"esbuild"
 		]
+	},
+	"overrides": {
+		"@modelcontextprotocol/sdk": "^1.25.2",
+		"cookie": "^0.7.0"
 	},
 	"dependencies": {
 		"@better-auth/passkey": "1.4.10",
