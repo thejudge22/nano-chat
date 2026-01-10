@@ -79,6 +79,7 @@ const reqBodySchema = z
 		reasoning_effort: z.enum(['low', 'medium', 'high']).optional(),
 		temporary: z.boolean().optional(),
 		provider_id: z.string().optional(), // X-Provider header for provider selection
+		image_params: z.record(z.string(), z.any()).optional(), // Image generation settings (resolution, quality, etc.)
 	})
 	.refine(
 		(data) => {
@@ -711,12 +712,12 @@ ${attachedRules.map((r) => `- ${r.name}: ${r.rule}`).join('\n')}`;
 	const messagesToSend =
 		systemContent.length > 0
 			? [
-					{
-						role: 'system' as const,
-						content: systemContent,
-					},
-					...finalMessages,
-				]
+				{
+					role: 'system' as const,
+					content: systemContent,
+				},
+				...finalMessages,
+			]
 			: finalMessages;
 
 	if (abortSignal?.aborted) {
@@ -758,19 +759,19 @@ ${attachedRules.map((r) => `- ${r.name}: ${r.rule}`).join('\n')}`;
 				linkup:
 					!webFeaturesDisabled && (lastUserMessage?.webSearchEnabled ?? false)
 						? {
-								enabled: true,
-								provider: webSearchProvider || 'linkup',
-								depth: webSearchDepth === 'deep' ? 'deep' : 'standard',
-							}
+							enabled: true,
+							provider: webSearchProvider || 'linkup',
+							depth: webSearchDepth === 'deep' ? 'deep' : 'standard',
+						}
 						: undefined,
 				// @ts-ignore - Custom NanoGPT parameters
 				youtube_transcripts: userSettingsData?.youtubeTranscriptsEnabled ?? false,
 				// @ts-ignore - Custom NanoGPT parameters
 				prompt_caching: model.modelId.startsWith('claude-')
 					? {
-							enabled: true,
-							ttl: '5m',
-						}
+						enabled: true,
+						ttl: '5m',
+					}
 					: undefined,
 			} as any, // Cast to any to allow custom parameters
 			{
@@ -826,11 +827,11 @@ ${attachedRules.map((r) => `- ${r.name}: ${r.rule}`).join('\n')}`;
 			// Collect tool calls (they come incrementally in streaming)
 			const deltaToolCalls = chunk.choices[0]?.delta?.tool_calls as
 				| Array<{
-						index: number;
-						id?: string;
-						type?: 'function';
-						function?: { name?: string; arguments?: string };
-				  }>
+					index: number;
+					id?: string;
+					type?: 'function';
+					function?: { name?: string; arguments?: string };
+				}>
 				| undefined;
 
 			if (deltaToolCalls) {
@@ -1764,9 +1765,20 @@ export const POST: RequestHandler = async ({ request }) => {
 					model: args.model_id,
 					prompt: args.message || 'Image',
 					response_format: 'b64_json',
-					n: 1,
-					size: '1024x1024',
+					n: args.image_params?.nImages || 1,
+					size: args.image_params?.resolution || '1024x1024',
 				};
+
+				// Include additional params from image settings
+				if (args.image_params?.quality) {
+					payload.quality = args.image_params.quality;
+				}
+				if (args.image_params?.aspect_ratio) {
+					payload.aspect_ratio = args.image_params.aspect_ratio;
+				}
+				if (args.image_params?.seed !== undefined && args.image_params?.seed !== -1) {
+					payload.seed = args.image_params.seed;
+				}
 
 				if (imageDataUrl) {
 					payload.imageDataUrl = imageDataUrl;

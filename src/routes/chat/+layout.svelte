@@ -16,6 +16,7 @@
 	import * as Sidebar from '$lib/components/ui/sidebar';
 	// import SettingsModal from '$lib/components/ui/settings-modal/settings-modal.svelte';
 	import VideoGenerationModal from '$lib/components/video/video-generation-modal.svelte';
+	import ImageGenerationModal from '$lib/components/image/image-generation-modal.svelte';
 	import { videoGenerator } from '$lib/state/video-generator.svelte';
 	import Tooltip from '$lib/components/ui/tooltip.svelte';
 	import { cmdOrCtrl } from '$lib/hooks/is-mac.svelte.js';
@@ -32,6 +33,7 @@
 		supportsVerbosity,
 		supportsDocuments,
 		supportsVideo,
+		isImageOnlyModel,
 	} from '$lib/utils/model-capabilities';
 	import { validateFiles, getFileType } from '$lib/utils/file-validation';
 	import { omit, pick } from '$lib/utils/object.js';
@@ -71,6 +73,7 @@
 	import EllipsisVerticalIcon from '~icons/lucide/ellipsis-vertical';
 	import { isTemporaryConversation } from '$lib/state/temporary-chat.svelte';
 	import VideoIcon from '~icons/lucide/video';
+	import ImageIcon from '~icons/lucide/image';
 
 	let { children } = $props();
 
@@ -157,6 +160,8 @@
 	let settingsModalOpen = $state(false);
 	let videoModalOpen = $state(false);
 	let videoParams = $state<Record<string, any>>({});
+	let imageModalOpen = $state(false);
+	let imageParams = $state<Record<string, any>>({});
 
 	$effect(() => {
 		if (isGenerating) {
@@ -360,6 +365,10 @@
 						? settings.reasoningEffort
 						: undefined,
 				temporary: settings.temporaryMode || undefined,
+				image_params:
+					currentModelSupportsImageGen && Object.keys(imageParams).length > 0
+						? imageParams
+						: undefined,
 			});
 
 			if (res.isErr()) {
@@ -571,6 +580,14 @@
 		const currentModel = nanoGPTModels.find((m) => m.id === settings.modelId);
 		if (!currentModel) return false;
 		return supportsVerbosity(currentModel);
+	});
+
+	const currentModelSupportsImageGen = $derived.by(() => {
+		if (!settings.modelId) return false;
+		const nanoGPTModels = models.from(Provider.NanoGPT);
+		const currentModel = nanoGPTModels.find((m) => m.id === settings.modelId);
+		if (!currentModel) return false;
+		return isImageOnlyModel(currentModel);
 	});
 
 	// Helper to check if file is an image (by MIME type or extension)
@@ -1537,7 +1554,9 @@
 												class={cn(
 													'bg-secondary/50 hover:bg-secondary text-muted-foreground flex size-8 items-center justify-center rounded-lg transition-colors',
 													(settings.temporaryMode ||
-														(currentModelSupportsVideo && Object.keys(videoParams).length > 0)) &&
+														(currentModelSupportsVideo && Object.keys(videoParams).length > 0) ||
+														(currentModelSupportsImageGen &&
+															Object.keys(imageParams).length > 0)) &&
 														'bg-primary/20 text-primary'
 												)}
 											>
@@ -1563,6 +1582,20 @@
 														Video Settings
 														{#if Object.keys(videoParams).length > 0}
 															<span class="ml-auto text-xs text-blue-500">•</span>
+														{/if}
+													</DropdownMenu.Item>
+												{/if}
+												{#if currentModelSupportsImageGen}
+													<DropdownMenu.Item onclick={() => (imageModalOpen = true)}>
+														<ImageIcon
+															class={cn(
+																'mr-2 size-4',
+																Object.keys(imageParams).length > 0 && 'text-purple-500'
+															)}
+														/>
+														Image Settings
+														{#if Object.keys(imageParams).length > 0}
+															<span class="ml-auto text-xs text-purple-500">•</span>
 														{/if}
 													</DropdownMenu.Item>
 												{/if}
@@ -1714,6 +1747,21 @@
 														{/if}
 													</DropdownMenu.Item>
 												{/if}
+												{#if currentModelSupportsImageGen}
+													<DropdownMenu.Separator />
+													<DropdownMenu.Item onclick={() => (imageModalOpen = true)}>
+														<ImageIcon
+															class={cn(
+																'mr-2 size-4',
+																Object.keys(imageParams).length > 0 && 'text-purple-500'
+															)}
+														/>
+														Image Settings
+														{#if Object.keys(imageParams).length > 0}
+															<span class="ml-auto text-xs text-purple-500">•</span>
+														{/if}
+													</DropdownMenu.Item>
+												{/if}
 											</DropdownMenu.Content>
 										</DropdownMenu.Root>
 									</div>
@@ -1772,4 +1820,9 @@
 	bind:open={videoModalOpen}
 	presetModelId={settings.modelId}
 	bind:videoParams
+/>
+<ImageGenerationModal
+	bind:open={imageModalOpen}
+	presetModelId={settings.modelId}
+	bind:imageParams
 />

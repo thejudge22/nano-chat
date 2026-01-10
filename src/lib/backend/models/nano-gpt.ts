@@ -38,6 +38,8 @@ export interface NanoGPTModel {
         options?: { value: string; label: string }[];
     }>;
     defaultSettings?: Record<string, any>;
+    resolutions?: { value: string; comment: string }[];
+    maxImages?: number;
 }
 
 export function getNanoGPTModels() {
@@ -113,6 +115,10 @@ export function getNanoGPTModels() {
                             included: m.subscription.included ?? false,
                             note: m.subscription.note ?? ''
                         } : undefined,
+                        additionalParams: m.additionalParams,
+                        defaultSettings: m.defaultSettings,
+                        resolutions: m.resolutions,
+                        maxImages: m.maxImages,
                     }));
                 }
             }
