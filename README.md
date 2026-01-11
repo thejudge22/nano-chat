@@ -6,6 +6,13 @@
   <img src="image.png">
 </div>
 
+## Mobile Apps
+
+Get the native NanoChat experience on your mobile device:
+
+- **Android**: [nanochat-android](https://github.com/jcrabapple/nanochat-android)
+- **iOS**: [nanochat-ios](https://github.com/nanogpt-community/nanochat-ios) (TestFlight link coming soon!)
+
 **IMPORTANT** - Rename your thom-chat.db.* files to nanochat.db.*
 
 ---
