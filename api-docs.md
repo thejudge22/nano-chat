@@ -1494,6 +1494,42 @@ curl -X POST "http://localhost:3432/api/db/user-models" \
   -d '{"action": "set", "provider": "openai", "modelId": "gpt-4", "enabled": true}'
 ```
 
+#### GET `/api/models`
+Get all available models with capabilities and user's enabled/pinned status.
+
+**Authentication**: Session or API Key
+
+**Response**:
+```json
+[
+  {
+    "id": "string",
+    "name": "string",
+    "description": "string",
+    "enabled": "boolean",
+    "pinned": "boolean",
+    "capabilities": {
+      "vision": "boolean",
+      "reasoning": "boolean",
+      "images": "boolean",
+      "video": "boolean"
+    },
+    "pricing": {
+      "prompt": "string",
+      "completion": "string",
+      "image": "string",
+      "request": "string"
+    }
+  }
+]
+```
+
+**CURL Example**:
+```bash
+curl -X GET "http://localhost:3432/api/models" \
+  -b "session_cookie=your_session"
+```
+
 ---
 
 ### Model Providers
