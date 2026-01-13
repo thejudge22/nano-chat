@@ -115,13 +115,13 @@ export async function calculateModelPerformanceStats(
 		const avgTokens =
 			responseMessages.length > 0
 				? responseMessages.reduce((sum, m) => sum + (m.tokenCount ?? 0), 0) /
-					responseMessages.length
+				responseMessages.length
 				: 0;
 
 		const avgResponseTime =
 			responsesWithLatency.length > 0
 				? responsesWithLatency.reduce((sum, m) => sum + (m.responseTimeMs ?? 0), 0) /
-					responsesWithLatency.length
+				responsesWithLatency.length
 				: undefined;
 
 		// Calculate rating stats
@@ -130,7 +130,7 @@ export async function calculateModelPerformanceStats(
 		const avgRating =
 			ratingsWithNumbers.length > 0
 				? ratingsWithNumbers.reduce((sum, r) => sum + (r.rating ?? 0), 0) /
-					ratingsWithNumbers.length
+				ratingsWithNumbers.length
 				: undefined;
 
 		const thumbsUpCount = allRatings.filter((r) => r.thumbs === 'up').length;
@@ -268,18 +268,25 @@ export async function calculateAllModelPerformanceStats(
 					const existing = existingStatsMap.get(key);
 
 					if (existing) {
-						// For models with existing stats (TTS/STT), use the existing data
-						console.log(`[model-performance] Using existing stats for ${model.modelId}`);
-						results.push(existing);
-					} else {
-						// For chat models, calculate stats from messages
-						const stats = await calculateModelPerformanceStats(
-							userId,
-							model.modelId,
-							model.provider
-						);
-						results.push(stats);
+						// TTS/STT models update stats directly, so use cached data for them
+						// Chat models should always recalculate from messages
+						const isTtsOrStt = model.modelId.startsWith('openai-tts') ||
+							model.modelId.startsWith('openai-stt') ||
+							model.modelId.includes('whisper');
+
+						if (isTtsOrStt) {
+							console.log(`[model-performance] Using existing stats for TTS/STT model ${model.modelId}`);
+							results.push(existing);
+							continue;
+						}
 					}
+					// For chat models, always calculate stats from messages
+					const stats = await calculateModelPerformanceStats(
+						userId,
+						model.modelId,
+						model.provider
+					);
+					results.push(stats);
 				} catch (err) {
 					console.error(`[model-performance] Failed to calculate stats for ${model.modelId}:`, err);
 					// Continue with other models even if one fails
