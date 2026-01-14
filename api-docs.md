@@ -75,6 +75,13 @@ Notes:
       "fileType": "enum: 'pdf' | 'markdown' | 'text' | 'epub'"
     }
   ],
+  "image_params": {
+    "nImages": "number (optional) - number of images to generate (if supported)",
+    "resolution": "string (optional)",
+    "quality": "string (optional)",
+    "aspect_ratio": "string (optional)",
+    "seed": "number (optional, set -1 for random)"
+  },
   "reasoning_effort": "enum: 'low' | 'medium' | 'high' (optional)",
   "temporary": "boolean (optional)",
   "provider_id": "string (optional) - Select specific provider for this generation"

@@ -716,12 +716,12 @@ ${attachedRules.map((r) => `- ${r.name}: ${r.rule}`).join('\n')}`;
 	const messagesToSend =
 		systemContent.length > 0
 			? [
-				{
-					role: 'system' as const,
-					content: systemContent,
-				},
-				...finalMessages,
-			]
+					{
+						role: 'system' as const,
+						content: systemContent,
+					},
+					...finalMessages,
+				]
 			: finalMessages;
 
 	if (abortSignal?.aborted) {
@@ -763,19 +763,19 @@ ${attachedRules.map((r) => `- ${r.name}: ${r.rule}`).join('\n')}`;
 				linkup:
 					!webFeaturesDisabled && (lastUserMessage?.webSearchEnabled ?? false)
 						? {
-							enabled: true,
-							provider: webSearchProvider || 'linkup',
-							depth: webSearchDepth === 'deep' ? 'deep' : 'standard',
-						}
+								enabled: true,
+								provider: webSearchProvider || 'linkup',
+								depth: webSearchDepth === 'deep' ? 'deep' : 'standard',
+							}
 						: undefined,
 				// @ts-ignore - Custom NanoGPT parameters
 				youtube_transcripts: userSettingsData?.youtubeTranscriptsEnabled ?? false,
 				// @ts-ignore - Custom NanoGPT parameters
 				prompt_caching: model.modelId.startsWith('claude-')
 					? {
-						enabled: true,
-						ttl: '5m',
-					}
+							enabled: true,
+							ttl: '5m',
+						}
 					: undefined,
 			} as any, // Cast to any to allow custom parameters
 			{
@@ -831,11 +831,11 @@ ${attachedRules.map((r) => `- ${r.name}: ${r.rule}`).join('\n')}`;
 			// Collect tool calls (they come incrementally in streaming)
 			const deltaToolCalls = chunk.choices[0]?.delta?.tool_calls as
 				| Array<{
-					index: number;
-					id?: string;
-					type?: 'function';
-					function?: { name?: string; arguments?: string };
-				}>
+						index: number;
+						id?: string;
+						type?: 'function';
+						function?: { name?: string; arguments?: string };
+				  }>
 				| undefined;
 
 			if (deltaToolCalls) {
@@ -1190,7 +1190,7 @@ ${attachedRules.map((r) => `- ${r.name}: ${r.rule}`).join('\n')}`;
 						const newAvgResponseTime =
 							responseTimeMs !== undefined && existing.avgResponseTime
 								? (existing.avgResponseTime * existing.totalMessages + responseTimeMs) /
-								newTotalMessages
+									newTotalMessages
 								: existing.avgResponseTime;
 
 						await db
@@ -1792,9 +1792,12 @@ export const POST: RequestHandler = async ({ request }) => {
 
 	const modelsResult = await getNanoGPTModels();
 	let isImageModel = false;
+	let modelInfo:
+		| { maxImages?: number; architecture?: { output_modalities?: string[] } }
+		| undefined;
 
 	if (modelsResult.isOk()) {
-		const modelInfo = modelsResult.value.find((m) => m.id === args.model_id);
+		modelInfo = modelsResult.value.find((m) => m.id === args.model_id);
 		if (modelInfo?.architecture?.output_modalities?.includes('image')) {
 			isImageModel = true;
 		}
@@ -1835,53 +1838,69 @@ export const POST: RequestHandler = async ({ request }) => {
 					}
 				}
 
-				const payload: any = {
+				const rawImageCount = args.image_params?.nImages;
+				const parsedImageCount =
+					typeof rawImageCount === 'number' ? rawImageCount : Number(rawImageCount);
+				const normalizedImageCount = Number.isFinite(parsedImageCount)
+					? Math.max(1, Math.floor(parsedImageCount))
+					: 1;
+				const maxImages =
+					typeof modelInfo?.maxImages === 'number' && Number.isFinite(modelInfo.maxImages)
+						? modelInfo.maxImages
+						: undefined;
+				const imageCount = maxImages
+					? Math.min(normalizedImageCount, maxImages)
+					: normalizedImageCount;
+
+				const payloadBase: any = {
 					model: args.model_id,
 					prompt: args.message || 'Image',
 					response_format: 'b64_json',
-					n: args.image_params?.nImages || 1,
 					size: args.image_params?.resolution || '1024x1024',
 				};
 
 				// Include additional params from image settings
 				if (args.image_params?.quality) {
-					payload.quality = args.image_params.quality;
+					payloadBase.quality = args.image_params.quality;
 				}
 				if (args.image_params?.aspect_ratio) {
-					payload.aspect_ratio = args.image_params.aspect_ratio;
+					payloadBase.aspect_ratio = args.image_params.aspect_ratio;
 				}
-				if (args.image_params?.seed !== undefined && args.image_params?.seed !== -1) {
-					payload.seed = args.image_params.seed;
+				if (args.image_params?.seed !== undefined) {
+					const rawSeed = args.image_params.seed;
+					const parsedSeed = typeof rawSeed === 'number' ? rawSeed : Number(rawSeed);
+					if (Number.isFinite(parsedSeed) && parsedSeed !== -1) {
+						payloadBase.seed = parsedSeed;
+					}
 				}
 
 				if (imageDataUrl) {
-					payload.imageDataUrl = imageDataUrl;
+					payloadBase.imageDataUrl = imageDataUrl;
 				}
 
-				const res = await fetch('https://nano-gpt.com/v1/images/generations', {
-					method: 'POST',
-					headers: {
-						Authorization: `Bearer ${actualKey}`,
-						'Content-Type': 'application/json',
-					},
-					body: JSON.stringify(payload),
-				});
+				const requestImages = async (count: number) => {
+					const payload = { ...payloadBase, n: count };
+					const res = await fetch('https://nano-gpt.com/v1/images/generations', {
+						method: 'POST',
+						headers: {
+							Authorization: `Bearer ${actualKey}`,
+							'Content-Type': 'application/json',
+						},
+						body: JSON.stringify(payload),
+					});
 
-				if (!res.ok) {
-					const errText = await res.text();
-					throw new Error(`NanoGPT API error: ${res.status} ${errText}`);
-				}
+					if (!res.ok) {
+						const errText = await res.text();
+						throw new Error(`NanoGPT API error: ${res.status} ${errText}`);
+					}
 
-				const response = await res.json();
-
-				// Extract cost from image generation response
-				const imageCost = response.cost ?? 0;
-				log(`Image generation cost: $${imageCost}`, startTime);
-
-				const responseImages = response.data ?? [];
-				if (!Array.isArray(responseImages) || responseImages.length === 0) {
-					throw new Error('No image data returned details: ' + JSON.stringify(response.data));
-				}
+					const response = await res.json();
+					const responseImages = response.data ?? [];
+					return {
+						images: Array.isArray(responseImages) ? responseImages : [],
+						cost: response.cost ?? 0,
+					};
+				};
 
 				// Ensure upload dir exists
 				const UPLOAD_DIR = join(process.cwd(), 'data', 'uploads');
@@ -1889,69 +1908,92 @@ export const POST: RequestHandler = async ({ request }) => {
 					mkdirSync(UPLOAD_DIR, { recursive: true });
 				}
 
+				const requestedImageCount = imageCount;
 				const generatedImages: Array<{ url: string; storage_id: string; fileName?: string }> = [];
+				let remaining = requestedImageCount;
+				let totalCost = 0;
+				let attempts = 0;
+				const maxAttempts = 2;
 
-				for (const [index, image] of responseImages.entries()) {
-					if (!image?.b64_json && !image?.url) {
-						console.warn('Skipping image without data:', image);
-						continue;
+				while (remaining > 0 && attempts < maxAttempts) {
+					const { images: responseImages, cost } = await requestImages(remaining);
+					totalCost += cost;
+					if (responseImages.length === 0) break;
+
+					for (const image of responseImages) {
+						if (!image?.b64_json && !image?.url) {
+							console.warn('Skipping image without data:', image);
+							continue;
+						}
+
+						let buffer: Buffer;
+						let mimeType = 'image/png';
+
+						if (image.b64_json) {
+							buffer = Buffer.from(image.b64_json, 'base64');
+						} else if (image.url) {
+							// Fallback download
+							const imgRes = await fetch(image.url);
+							if (!imgRes.ok) {
+								console.warn('Failed to download image:', imgRes.status, image.url);
+								continue;
+							}
+							const arrayBuffer = await imgRes.arrayBuffer();
+							buffer = Buffer.from(arrayBuffer);
+							const contentType = imgRes.headers.get('content-type');
+							if (contentType) mimeType = contentType;
+						} else {
+							continue;
+						}
+
+						const storageId = generateId();
+						const extension =
+							(mimeType.split('/')[1] || 'png').replace(/[^a-zA-Z0-9]/g, '') || 'png';
+						const filename = `${storageId}.${extension}`;
+						const filepath = join(UPLOAD_DIR, filename);
+
+						// Prevent path traversal
+						if (!resolve(filepath).startsWith(resolve(UPLOAD_DIR))) {
+							throw new Error('Invalid file path');
+						}
+
+						writeFileSync(filepath, buffer);
+
+						await db.insert(storage).values({
+							id: storageId,
+							userId,
+							filename,
+							mimeType,
+							size: buffer.byteLength,
+							path: filepath,
+							createdAt: new Date(),
+						});
+
+						const imageUrl = `/api/storage/${storageId}`;
+						const imageIndex = generatedImages.length + 1;
+						generatedImages.push({
+							url: imageUrl,
+							storage_id: storageId,
+							fileName: `generated-image-${imageIndex}.${extension}`,
+						});
 					}
 
-					let buffer: Buffer;
-					let mimeType = 'image/png';
-
-					if (image.b64_json) {
-						buffer = Buffer.from(image.b64_json, 'base64');
-					} else if (image.url) {
-						// Fallback download
-						const imgRes = await fetch(image.url);
-						const arrayBuffer = await imgRes.arrayBuffer();
-						buffer = Buffer.from(arrayBuffer);
-						const contentType = imgRes.headers.get('content-type');
-						if (contentType) mimeType = contentType;
-					} else {
-						continue;
-					}
-
-					const storageId = generateId();
-					const extension =
-						(mimeType.split('/')[1] || 'png').replace(/[^a-zA-Z0-9]/g, '') || 'png';
-					const filename = `${storageId}.${extension}`;
-					const filepath = join(UPLOAD_DIR, filename);
-
-					// Prevent path traversal
-					if (!resolve(filepath).startsWith(resolve(UPLOAD_DIR))) {
-						throw new Error('Invalid file path');
-					}
-
-					writeFileSync(filepath, buffer);
-
-					await db.insert(storage).values({
-						id: storageId,
-						userId,
-						filename,
-						mimeType,
-						size: buffer.byteLength,
-						path: filepath,
-						createdAt: new Date(),
-					});
-
-					const imageUrl = `/api/storage/${storageId}`;
-					generatedImages.push({
-						url: imageUrl,
-						storage_id: storageId,
-						fileName: `generated-image-${index + 1}.${extension}`,
-					});
+					remaining = requestedImageCount - generatedImages.length;
+					attempts += 1;
 				}
+
+				log(`Image generation cost: $${totalCost}`, startTime);
 
 				if (generatedImages.length === 0) {
 					throw new Error('No valid image data returned from API');
 				}
 
 				const textContent =
-					generatedImages.length > 1
-						? `Generated Images (${generatedImages.length})`
-						: 'Generated Image';
+					generatedImages.length !== requestedImageCount
+						? `Generated Image${generatedImages.length > 1 ? 's' : ''} (${generatedImages.length} of ${requestedImageCount})`
+						: generatedImages.length > 1
+							? `Generated Images (${generatedImages.length})`
+							: 'Generated Image';
 
 				await db
 					.update(messages)
@@ -1960,7 +2002,7 @@ export const POST: RequestHandler = async ({ request }) => {
 						contentHtml: null,
 						tokenCount: 0,
 						images: generatedImages,
-						costUsd: imageCost,
+						costUsd: totalCost,
 					})
 					.where(eq(messages.id, assistantMessageId));
 
@@ -1969,7 +2011,7 @@ export const POST: RequestHandler = async ({ request }) => {
 					.set({
 						generating: false,
 						updatedAt: new Date(),
-						costUsd: sql`COALESCE(${conversations.costUsd}, 0) + ${imageCost}`,
+						costUsd: sql`COALESCE(${conversations.costUsd}, 0) + ${totalCost}`,
 					})
 					.where(eq(conversations.id, conversationId));
 
