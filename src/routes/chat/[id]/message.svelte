@@ -55,6 +55,15 @@
 
 	let { message, childMessageId }: Props = $props();
 
+	const safeContent = $derived.by(() => (typeof message.content === 'string' ? message.content : ''));
+	const safeImages = $derived.by(() =>
+		Array.isArray(message.images)
+			? message.images.filter(
+					(image) => image && typeof image.url === 'string' && typeof image.storage_id === 'string'
+				)
+			: []
+	);
+
 	let imageModal = $state<{ open: boolean; imageUrl: string; fileName: string }>({
 		open: false,
 		imageUrl: '',
@@ -127,8 +136,8 @@
 
 	// Detect Video URL in content
 	const videoUrl = $derived.by(() => {
-		if (!message.content) return null;
-		const match = message.content.match(/\[Video Result\]\((.*?)\)/);
+		if (!safeContent) return null;
+		const match = safeContent.match(/\[Video Result\]\((.*?)\)/);
 		return match ? match[1] : null;
 	});
 
@@ -205,7 +214,7 @@
 	});
 
 	function startEditing() {
-		editedContent = message.content;
+		editedContent = safeContent;
 		isEditing = true;
 	}
 
@@ -246,7 +255,7 @@
 	}
 
 	async function saveMessage() {
-		if (editedContent === message.content) {
+		if (editedContent === safeContent) {
 			cancelEditing();
 			return;
 		}
@@ -324,7 +333,7 @@
 	}
 </script>
 
-{#if message.role !== 'system' && !(message.role === 'assistant' && message.content.length === 0 && message.reasoning?.length === 0 && !message.error)}
+{#if message.role !== 'system' && !(message.role === 'assistant' && safeContent.length === 0 && message.reasoning?.length === 0 && !message.error)}
 	<div
 		class={cn('group flex flex-col gap-1', { 'max-w-[80%] self-end ': message.role === 'user' })}
 		{@attach (node) => {
@@ -349,9 +358,9 @@
 			</div>
 		{/if}
 
-		{#if message.images && message.images.length > 0}
+		{#if safeImages.length > 0}
 			<div class="mb-2 flex flex-wrap gap-2">
-				{#each message.images as image (image.storage_id)}
+				{#each safeImages as image (image.storage_id)}
 					<button
 						type="button"
 						onclick={() => openImageModal(image.url, image.fileName || 'image')}
@@ -382,7 +391,7 @@
 					<ChevronRightIcon
 						class={cn('size-4 transition-transform duration-200', { 'rotate-90': showReasoning })}
 					/>
-					{#if message.content.length === 0}
+					{#if safeContent.length === 0}
 						<ShinyText class="font-medium">Thinking...</ShinyText>
 					{:else}
 						<span class="font-medium">Reasoning</span>
@@ -444,7 +453,7 @@
 				{@html sanitizeHtml(message.contentHtml)}
 			{:else}
 				<svelte:boundary>
-					<MarkdownRenderer content={message.content} />
+					<MarkdownRenderer content={safeContent} />
 
 					{#snippet failed(error)}
 						<div class="text-destructive">
@@ -537,7 +546,7 @@
 				{message.role === 'user' ? 'Branch and regenerate message' : 'Branch off this message'}
 			</Tooltip>
 
-			{#if message.role === 'assistant' && message.content.length > 0}
+			{#if message.role === 'assistant' && safeContent.length > 0}
 				<Tooltip>
 					{#snippet trigger(tooltip)}
 						<Button
@@ -548,7 +557,7 @@
 								if (audioPlayer.isPlaying && audioPlayer.currentMessageId === message.id) {
 									audioPlayer.stop();
 								} else {
-									audioPlayer.play(message.content, message.id);
+							audioPlayer.play(safeContent, message.id);
 								}
 							}}
 							{...tooltip.trigger}
@@ -567,7 +576,7 @@
 						: 'Read aloud'}
 				</Tooltip>
 			{/if}
-			{#if message.role === 'assistant' && message.content.length > 0 && !message.error}
+			{#if message.role === 'assistant' && safeContent.length > 0 && !message.error}
 				<Tooltip>
 					{#snippet trigger(tooltip)}
 						<Button
@@ -589,15 +598,15 @@
 				</Tooltip>
 			{/if}
 
-			{#if message.content.length > 0}
-				<Tooltip>
-					{#snippet trigger(tooltip)}
-						<CopyButton
-							class={cn('order-1 size-7', { 'order-2': message.role === 'user' })}
-							text={message.content}
-							onclick={() => logInteraction('copy')}
-							{...tooltip.trigger}
-						/>
+		{#if safeContent.length > 0}
+			<Tooltip>
+				{#snippet trigger(tooltip)}
+					<CopyButton
+						class={cn('order-1 size-7', { 'order-2': message.role === 'user' })}
+						text={safeContent}
+						onclick={() => logInteraction('copy')}
+						{...tooltip.trigger}
+					/>
 					{/snippet}
 					Copy
 				</Tooltip>
@@ -685,14 +694,14 @@
 				</div>
 			{/if}
 		</div>
-		{#if message.role === 'assistant' && message.content.length > 0 && !message.error}
+		{#if message.role === 'assistant' && safeContent.length > 0 && !message.error}
 			<div class="mt-2">
 				<MessageRating messageId={message.id} onRate={handleRating} />
 			</div>
 		{/if}
 	</div>
 
-	{#if message.images && message.images.length > 0}
+	{#if safeImages.length > 0}
 		<ImageModal
 			bind:open={imageModal.open}
 			imageUrl={imageModal.imageUrl}

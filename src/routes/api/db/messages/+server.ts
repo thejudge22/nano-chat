@@ -13,6 +13,51 @@ import {
 import { getConversationById } from '$lib/db/queries/conversations';
 import { getAuthenticatedUserId } from '$lib/backend/auth-utils';
 
+function extractMarkdownImages(content: string): Array<{ url: string; fileName?: string }> {
+    const images: Array<{ url: string; fileName?: string }> = [];
+    const regex = /!\[([^\]]*)\]\(([^)]+)\)/g;
+    for (const match of content.matchAll(regex)) {
+        const alt = match[1]?.trim();
+        const rawUrl = match[2]?.trim();
+        if (!rawUrl) continue;
+        const url = rawUrl.split(/\s+/)[0]?.replace(/^<|>$/g, '');
+        if (!url) continue;
+        images.push({ url, fileName: alt || undefined });
+    }
+    return images;
+}
+
+function extractStorageId(url: string): string | null {
+    const match = url.match(/\/api\/storage\/([a-zA-Z0-9_-]+)/);
+    return match ? match[1] : null;
+}
+
+function withInlineImages<
+    T extends {
+        id?: string;
+        content: string;
+        images?: Array<{ url: string; storage_id: string; fileName?: string }>;
+    }
+>(
+    messages: T[]
+): T[] {
+    return messages.map((message) => {
+        if (message.images && message.images.length > 0) return message;
+        if (!message.content) return message;
+
+        const inlineImages = extractMarkdownImages(message.content);
+        if (inlineImages.length === 0) return message;
+
+        const images = inlineImages.map((image, index) => ({
+            url: image.url,
+            storage_id: extractStorageId(image.url) ?? `${message.id ?? 'inline'}-${index}`,
+            fileName: image.fileName,
+        }));
+
+        return { ...message, images };
+    });
+}
+
 // GET - get messages for a conversation
 export const GET: RequestHandler = async ({ request, url }) => {
     const conversationId = url.searchParams.get('conversationId');
@@ -27,12 +72,12 @@ export const GET: RequestHandler = async ({ request, url }) => {
         if (!messages) {
             return error(404, 'Conversation not found or not public');
         }
-        return json(messages);
+        return json(withInlineImages(messages));
     }
 
     const userId = await getAuthenticatedUserId(request);
     const messages = await getConversationMessages(conversationId, userId);
-    return json(messages);
+    return json(withInlineImages(messages));
 };
 
 // POST - create or update message

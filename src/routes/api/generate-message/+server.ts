@@ -1878,25 +1878,9 @@ export const POST: RequestHandler = async ({ request }) => {
 				const imageCost = response.cost ?? 0;
 				log(`Image generation cost: $${imageCost}`, startTime);
 
-				const image = response.data?.[0];
-				if (!image?.b64_json && !image?.url) {
-					throw new Error('No image data returned details: ' + JSON.stringify(image));
-				}
-
-				let buffer: Buffer;
-				let mimeType = 'image/png';
-
-				if (image.b64_json) {
-					buffer = Buffer.from(image.b64_json, 'base64');
-				} else if (image.url) {
-					// Fallback download
-					const imgRes = await fetch(image.url);
-					const arrayBuffer = await imgRes.arrayBuffer();
-					buffer = Buffer.from(arrayBuffer);
-					const contentType = imgRes.headers.get('content-type');
-					if (contentType) mimeType = contentType;
-				} else {
-					throw new Error('No image data');
+				const responseImages = response.data ?? [];
+				if (!Array.isArray(responseImages) || responseImages.length === 0) {
+					throw new Error('No image data returned details: ' + JSON.stringify(response.data));
 				}
 
 				// Ensure upload dir exists
@@ -1905,30 +1889,68 @@ export const POST: RequestHandler = async ({ request }) => {
 					mkdirSync(UPLOAD_DIR, { recursive: true });
 				}
 
-				const storageId = generateId();
-				const extension = (mimeType.split('/')[1] || 'png').replace(/[^a-zA-Z0-9]/g, '') || 'png';
-				const filename = `${storageId}.${extension}`;
-				const filepath = join(UPLOAD_DIR, filename);
+				const generatedImages: Array<{ url: string; storage_id: string; fileName?: string }> = [];
 
-				// Prevent path traversal
-				if (!resolve(filepath).startsWith(resolve(UPLOAD_DIR))) {
-					throw new Error('Invalid file path');
+				for (const [index, image] of responseImages.entries()) {
+					if (!image?.b64_json && !image?.url) {
+						console.warn('Skipping image without data:', image);
+						continue;
+					}
+
+					let buffer: Buffer;
+					let mimeType = 'image/png';
+
+					if (image.b64_json) {
+						buffer = Buffer.from(image.b64_json, 'base64');
+					} else if (image.url) {
+						// Fallback download
+						const imgRes = await fetch(image.url);
+						const arrayBuffer = await imgRes.arrayBuffer();
+						buffer = Buffer.from(arrayBuffer);
+						const contentType = imgRes.headers.get('content-type');
+						if (contentType) mimeType = contentType;
+					} else {
+						continue;
+					}
+
+					const storageId = generateId();
+					const extension =
+						(mimeType.split('/')[1] || 'png').replace(/[^a-zA-Z0-9]/g, '') || 'png';
+					const filename = `${storageId}.${extension}`;
+					const filepath = join(UPLOAD_DIR, filename);
+
+					// Prevent path traversal
+					if (!resolve(filepath).startsWith(resolve(UPLOAD_DIR))) {
+						throw new Error('Invalid file path');
+					}
+
+					writeFileSync(filepath, buffer);
+
+					await db.insert(storage).values({
+						id: storageId,
+						userId,
+						filename,
+						mimeType,
+						size: buffer.byteLength,
+						path: filepath,
+						createdAt: new Date(),
+					});
+
+					const imageUrl = `/api/storage/${storageId}`;
+					generatedImages.push({
+						url: imageUrl,
+						storage_id: storageId,
+						fileName: `generated-image-${index + 1}.${extension}`,
+					});
 				}
 
-				writeFileSync(filepath, buffer);
+				if (generatedImages.length === 0) {
+					throw new Error('No valid image data returned from API');
+				}
 
-				await db.insert(storage).values({
-					id: storageId,
-					userId,
-					filename,
-					mimeType,
-					size: buffer.byteLength,
-					path: filepath,
-					createdAt: new Date(),
-				});
-
-				const imageUrl = `/api/storage/${storageId}`;
-				const markdownContent = `![Generated Image](${imageUrl})`;
+				const markdownContent = generatedImages
+					.map((img, idx) => `![Generated Image ${idx + 1}](${img.url})`)
+					.join('\n\n');
 
 				await db
 					.update(messages)
@@ -1936,6 +1958,7 @@ export const POST: RequestHandler = async ({ request }) => {
 						content: markdownContent,
 						contentHtml: null,
 						tokenCount: 0,
+						images: generatedImages,
 						costUsd: imageCost,
 					})
 					.where(eq(messages.id, assistantMessageId));
