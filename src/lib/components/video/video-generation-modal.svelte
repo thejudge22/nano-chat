@@ -4,6 +4,7 @@
 	import { Input } from '$lib/components/ui/input';
 	import { models } from '$lib/state/models.svelte';
 	import { Provider } from '$lib/types';
+	import { supportsVideo } from '$lib/utils/model-capabilities';
 	import VideoIcon from '~icons/lucide/video';
 	import { untrack } from 'svelte';
 
@@ -15,24 +16,131 @@
 
 	// Get current model details to show params
 	const modelsList = $derived(models.from(Provider.NanoGPT));
-	const currentModel = $derived(modelsList.find((m) => m.id === presetModelId));
+	const currentModel = $derived.by(() => {
+		const model = modelsList.find((m) => m.id === presetModelId);
+		return model && supportsVideo(model) ? model : null;
+	});
+
+	type ParamType = 'select' | 'boolean' | 'switch' | 'text' | 'number';
+
+	type NormalizedParam = {
+		key: string;
+		label: string;
+		description?: string;
+		type: ParamType;
+		defaultValue?: string | number | boolean;
+		options?: { value: string; label: string }[];
+	};
+
+	function isPrimitive(value: unknown): value is string | number | boolean {
+		return typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean';
+	}
+
+	function normalizeParam(key: string, raw: Record<string, unknown>): NormalizedParam | null {
+		const hasConfig =
+			typeof raw.label === 'string' ||
+			typeof raw.type === 'string' ||
+			raw.default !== undefined ||
+			Array.isArray(raw.options);
+		if (!hasConfig) return null;
+
+		let type = raw.type as ParamType | undefined;
+		const options = Array.isArray(raw.options)
+			? raw.options.filter(
+					(option) =>
+						option &&
+						typeof option === 'object' &&
+						isPrimitive((option as { value?: unknown }).value) &&
+						typeof (option as { label?: unknown }).label === 'string'
+				)
+			: undefined;
+
+		if (!type) {
+			if (options && options.length > 0) type = 'select';
+			else if (typeof raw.default === 'boolean') type = 'boolean';
+			else if (typeof raw.default === 'number') type = 'number';
+			else type = 'text';
+		}
+
+		if (type === 'select' && (!options || options.length === 0)) {
+			type = 'text';
+		}
+
+		const label = typeof raw.label === 'string' && raw.label.trim() ? raw.label : key;
+		const description = typeof raw.description === 'string' ? raw.description : undefined;
+		const defaultValue = isPrimitive(raw.default) ? raw.default : undefined;
+
+		return {
+			key,
+			label,
+			description,
+			type,
+			defaultValue,
+			options: options as { value: string; label: string }[] | undefined,
+		};
+	}
+
+	const normalizedParams = $derived.by(() => {
+		if (!currentModel?.additionalParams) return [] as NormalizedParam[];
+		const entries = Object.entries(currentModel.additionalParams);
+		const normalized: NormalizedParam[] = [];
+		for (const [key, raw] of entries) {
+			if (!raw || typeof raw !== 'object') continue;
+			const param = normalizeParam(key, raw as Record<string, unknown>);
+			if (param) normalized.push(param);
+		}
+		return normalized;
+	});
 
 	// Initialize default params when model changes
 	$effect(() => {
-		if (currentModel?.additionalParams) {
+		if (currentModel) {
 			const defaults: Record<string, any> = {};
-			// Gather defaults
-			for (const [key, param] of Object.entries(currentModel.additionalParams)) {
-				defaults[key] = param.default;
+
+			for (const param of normalizedParams) {
+				let value = param.defaultValue;
+				const modelDefault = currentModel.defaultSettings?.[param.key];
+				if (value === undefined && isPrimitive(modelDefault)) {
+					value = modelDefault;
+				}
+
+				if (param.type === 'select' && param.options && param.options.length > 0) {
+					if (!param.options.some((option) => option.value === value)) {
+						value = param.options[0]?.value;
+					}
+				}
+
+				if (value === undefined) {
+					if (param.type === 'boolean' || param.type === 'switch') value = false;
+					else if (param.type === 'number') value = 0;
+					else value = '';
+				}
+
+				defaults[param.key] = value;
 			}
 
 			untrack(() => {
-				// Initialize params if empty or missing keys
-				const newParams = { ...defaults, ...videoParams };
-				// Ensure defaults exist
-				for (const key in defaults) {
-					if (newParams[key] === undefined) {
-						newParams[key] = defaults[key];
+				const newParams: Record<string, any> = {};
+				for (const param of normalizedParams) {
+					const currentValue = videoParams[param.key];
+					if (isPrimitive(currentValue)) {
+						if (
+							param.type === 'select' &&
+							param.options &&
+							!param.options.some((option) => option.value === currentValue)
+						) {
+							newParams[param.key] = defaults[param.key];
+						} else {
+							newParams[param.key] = currentValue;
+						}
+					} else {
+						newParams[param.key] = defaults[param.key];
+					}
+				}
+
+				for (const key of Object.keys(videoParams)) {
+					if (!(key in newParams)) {
+						delete videoParams[key];
 					}
 				}
 				// Update parent bindable
@@ -60,8 +168,8 @@
 			<div class="text-muted-foreground p-4 text-center text-sm">
 				Please select a video capable model in the chat to configure settings.
 			</div>
-		{:else if currentModel.additionalParams}
-			{#each Object.entries(currentModel.additionalParams) as [key, param]}
+		{:else if normalizedParams.length > 0}
+			{#each normalizedParams as param}
 				<div class="flex flex-col gap-2">
 					<!-- svelte-ignore a11y_label_has_associated_control -->
 					<label
@@ -75,35 +183,35 @@
 						{/if}
 					</label>
 
-					{#if param.type === 'select' && param.options}
-						<select
-							class="border-input ring-offset-background placeholder:text-muted-foreground focus:ring-ring flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium focus:ring-1 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
-							bind:value={videoParams[key]}
-						>
-							{#each param.options as option}
-								<option value={option.value}>{option.label}</option>
-							{/each}
-						</select>
-					{:else if param.type === 'boolean' || param.type === 'switch'}
-						<div class="flex items-center space-x-2">
-							<input
-								type="checkbox"
-								class="text-primary focus:ring-primary h-4 w-4 rounded border-gray-300"
-								bind:checked={videoParams[key]}
+						{#if param.type === 'select' && param.options}
+							<select
+								class="border-input ring-offset-background placeholder:text-muted-foreground focus:ring-ring flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium focus:ring-1 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+								bind:value={videoParams[param.key]}
+							>
+								{#each param.options as option}
+									<option value={option.value}>{option.label}</option>
+								{/each}
+							</select>
+						{:else if param.type === 'boolean' || param.type === 'switch'}
+							<div class="flex items-center space-x-2">
+								<input
+									type="checkbox"
+									class="text-primary focus:ring-primary h-4 w-4 rounded border-gray-300"
+									bind:checked={videoParams[param.key]}
+								/>
+								<span class="text-muted-foreground text-sm">Enabled</span>
+							</div>
+						{:else if param.type === 'number'}
+							<Input
+								type="number"
+								bind:value={videoParams[param.key]}
+								min={(param as any).min}
+								max={(param as any).max}
+								step={(param as any).step}
 							/>
-							<span class="text-muted-foreground text-sm">Enabled</span>
-						</div>
-					{:else if param.type === 'number'}
-						<Input
-							type="number"
-							bind:value={videoParams[key]}
-							min={(param as any).min}
-							max={(param as any).max}
-							step={(param as any).step}
-						/>
-					{:else}
-						<Input type="text" bind:value={videoParams[key]} />
-					{/if}
+						{:else}
+							<Input type="text" bind:value={videoParams[param.key]} />
+						{/if}
 				</div>
 			{/each}
 		{:else}
