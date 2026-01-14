@@ -63,6 +63,11 @@
 				)
 			: []
 	);
+	const displayContent = $derived.by(() => {
+		if (safeImages.length === 0) return safeContent;
+		const stripped = safeContent.replace(/!\[[^\]]*]\([^)]*\)/g, '').trim();
+		return stripped.length > 0 ? stripped : 'Generated Image';
+	});
 
 	let imageModal = $state<{ open: boolean; imageUrl: string; fileName: string }>({
 		open: false,
@@ -453,7 +458,7 @@
 				{@html sanitizeHtml(message.contentHtml)}
 			{:else}
 				<svelte:boundary>
-					<MarkdownRenderer content={safeContent} />
+			<MarkdownRenderer content={displayContent} />
 
 					{#snippet failed(error)}
 						<div class="text-destructive">
@@ -557,7 +562,7 @@
 								if (audioPlayer.isPlaying && audioPlayer.currentMessageId === message.id) {
 									audioPlayer.stop();
 								} else {
-							audioPlayer.play(safeContent, message.id);
+							audioPlayer.play(displayContent, message.id);
 								}
 							}}
 							{...tooltip.trigger}

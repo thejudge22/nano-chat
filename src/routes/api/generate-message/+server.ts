@@ -1948,14 +1948,15 @@ export const POST: RequestHandler = async ({ request }) => {
 					throw new Error('No valid image data returned from API');
 				}
 
-				const markdownContent = generatedImages
-					.map((img, idx) => `![Generated Image ${idx + 1}](${img.url})`)
-					.join('\n\n');
+				const textContent =
+					generatedImages.length > 1
+						? `Generated Images (${generatedImages.length})`
+						: 'Generated Image';
 
 				await db
 					.update(messages)
 					.set({
-						content: markdownContent,
+						content: textContent,
 						contentHtml: null,
 						tokenCount: 0,
 						images: generatedImages,
