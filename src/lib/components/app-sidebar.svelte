@@ -25,6 +25,7 @@
 	import PencilIcon from '~icons/lucide/pencil';
 	import CheckIcon from '~icons/lucide/check';
 	import FolderIcon from '~icons/lucide/folder';
+	import FolderInputIcon from '~icons/lucide/folder-input';
 	import FolderOpenIcon from '~icons/lucide/folder-open';
 	import PlusIcon from '~icons/lucide/plus';
 	import ChevronRightIcon from '~icons/lucide/chevron-right';
@@ -32,6 +33,7 @@
 	import CreateProjectModal from '$lib/components/projects/create-project-modal.svelte';
 	import ProjectSettingsModal from '$lib/components/projects/project-settings-modal.svelte';
 	import SettingsIcon from '~icons/lucide/settings';
+	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 
 	let { searchModalOpen = $bindable(false) }: { searchModalOpen: boolean } = $props();
 
@@ -87,6 +89,18 @@
 		await mutate(api.conversations.togglePin.url, {
 			action: 'togglePin',
 			conversationId,
+		});
+
+		invalidateQueryPattern(api.conversations.get.url);
+	}
+
+	async function setConversationProject(conversationId: string, projectId: string | null) {
+		if (!session.current?.session.token) return;
+
+		await mutate(api.conversations.setProject.url, {
+			action: 'setProject',
+			conversationId,
+			projectId,
 		});
 
 		invalidateQueryPattern(api.conversations.get.url);
@@ -333,9 +347,56 @@
 											)}
 										>
 											<span class="truncate">{conversation.title || 'Untitled'}</span>
-											{#if conversation.generating}
-												<LoaderCircleIcon class="size-3 animate-spin" />
-											{/if}
+											<div class="flex items-center gap-1">
+												{#if conversation.generating}
+													<LoaderCircleIcon class="size-3 animate-spin" />
+												{/if}
+												<DropdownMenu.Root>
+													<Tooltip>
+														{#snippet trigger(tooltip)}
+															<DropdownMenu.Trigger
+																{...tooltip.trigger}
+																class="hover:bg-muted/60 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 rounded-md p-1 transition-opacity"
+																onclick={(e) => {
+																	e.preventDefault();
+																	e.stopPropagation();
+																}}
+															>
+																<FolderInputIcon class="size-3.5" />
+															</DropdownMenu.Trigger>
+														{/snippet}
+														Move to project
+													</Tooltip>
+													<DropdownMenu.Content align="end">
+														<DropdownMenu.Label>Move to project</DropdownMenu.Label>
+														<DropdownMenu.Separator />
+														<DropdownMenu.Item
+															disabled={!conversation.projectId}
+															onclick={() => setConversationProject(conversation.id, null)}
+														>
+															Remove from project
+														</DropdownMenu.Item>
+														{#if projectsQuery.data && projectsQuery.data.length > 0}
+															{#each projectsQuery.data as project (project.id)}
+																<DropdownMenu.Item
+																	disabled={conversation.projectId === project.id}
+																	onclick={() => setConversationProject(conversation.id, project.id)}
+																>
+																	<FolderIcon class="size-3.5" />
+																	<span class="truncate">{project.name}</span>
+																</DropdownMenu.Item>
+															{/each}
+														{:else}
+															<DropdownMenu.Item disabled>No projects yet</DropdownMenu.Item>
+														{/if}
+														<DropdownMenu.Separator />
+														<DropdownMenu.Item onclick={() => (createProjectModalOpen = true)}>
+															<PlusIcon class="size-3.5" />
+															<span>Create project</span>
+														</DropdownMenu.Item>
+													</DropdownMenu.Content>
+												</DropdownMenu.Root>
+											</div>
 										</a>
 									{/each}
 								{/if}
@@ -504,6 +565,51 @@
 										{/snippet}
 										{conversation.pinned ? 'Unpin thread' : 'Pin thread'}
 									</Tooltip>
+									<DropdownMenu.Root>
+										<Tooltip>
+											{#snippet trigger(tooltip)}
+												<DropdownMenu.Trigger
+													{...tooltip.trigger}
+													class="hover:bg-muted rounded-md p-1"
+													onclick={(e) => {
+														e.preventDefault();
+														e.stopPropagation();
+													}}
+												>
+													<FolderInputIcon class="size-4" />
+												</DropdownMenu.Trigger>
+											{/snippet}
+											Move to project
+										</Tooltip>
+										<DropdownMenu.Content align="end">
+											<DropdownMenu.Label>Move to project</DropdownMenu.Label>
+											<DropdownMenu.Separator />
+											<DropdownMenu.Item
+												disabled={!conversation.projectId}
+												onclick={() => setConversationProject(conversation.id, null)}
+											>
+												Remove from project
+											</DropdownMenu.Item>
+											{#if projectsQuery.data && projectsQuery.data.length > 0}
+												{#each projectsQuery.data as project (project.id)}
+													<DropdownMenu.Item
+														disabled={conversation.projectId === project.id}
+														onclick={() => setConversationProject(conversation.id, project.id)}
+													>
+														<FolderIcon class="size-3.5" />
+														<span class="truncate">{project.name}</span>
+													</DropdownMenu.Item>
+												{/each}
+											{:else}
+												<DropdownMenu.Item disabled>No projects yet</DropdownMenu.Item>
+											{/if}
+											<DropdownMenu.Separator />
+											<DropdownMenu.Item onclick={() => (createProjectModalOpen = true)}>
+												<PlusIcon class="size-3.5" />
+												<span>Create project</span>
+											</DropdownMenu.Item>
+										</DropdownMenu.Content>
+									</DropdownMenu.Root>
 									<Tooltip>
 										{#snippet trigger(tooltip)}
 											<button

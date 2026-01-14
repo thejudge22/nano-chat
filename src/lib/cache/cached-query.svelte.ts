@@ -174,6 +174,7 @@ export const api = {
 		updateTitle: { url: '/api/db/conversations', method: 'POST' } as QueryConfig,
 		updateGenerating: { url: '/api/db/conversations', method: 'POST' } as QueryConfig,
 		updateCostUsd: { url: '/api/db/conversations', method: 'POST' } as QueryConfig,
+		setProject: { url: '/api/db/conversations', method: 'POST' } as QueryConfig,
 		setPublic: { url: '/api/db/conversations', method: 'POST' } as QueryConfig,
 		togglePin: { url: '/api/db/conversations', method: 'POST' } as QueryConfig,
 		remove: { url: '/api/db/conversations', method: 'POST' } as QueryConfig,
